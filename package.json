@@ -1,0 +1,86 @@
+{
+  "name": "reskill",
+  "version": "0.11.0",
+  "description": "AI Skills Package Manager - Git-based skills management for AI agents",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "reskill": "./dist/cli/index.js"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./cli": {
+      "import": "./dist/cli/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "rslib build --watch",
+    "build": "rslib build",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "lint": "biome check src",
+    "lint:fix": "biome check src --write",
+    "format": "biome format src --write",
+    "typecheck": "tsc --noEmit",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "pnpm build && changeset publish",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "skills",
+    "ai",
+    "agent",
+    "package-manager",
+    "cli",
+    "cursor",
+    "claude-code",
+    "github-copilot",
+    "opencode",
+    "windsurf",
+    "codex",
+    "multi-agent"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kanyun-ai-infra/reskill.git"
+  },
+  "homepage": "https://github.com/kanyun-ai-infra/reskill#readme",
+  "bugs": {
+    "url": "https://github.com/kanyun-ai-infra/reskill/issues"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.9.1",
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0",
+    "degit": "^2.8.4",
+    "gray-matter": "^4.0.3",
+    "ora": "^8.0.1",
+    "semver": "^7.6.3"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.11",
+    "@changesets/cli": "^2.29.8",
+    "@rslib/core": "^0.1.1",
+    "@types/degit": "^2.8.6",
+    "@types/node": "^22.10.0",
+    "@types/semver": "^7.5.8",
+    "@vitest/coverage-v8": "^2.1.9",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Test coverage
+coverage/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+
+# Skills installation (for testing)
+.skills/
+.reskill-cache/
+
+# Lock files (keep package-lock if using npm)
+# pnpm-lock.yaml
+# yarn.lock
+
+# Agent skills directories (created during install)
+.agents/
+.cursor/skills/
+!.cursor/rules/
+!.cursor/ARCHITECTURE.md
+.claude/
+.windsurf/
+.copilot/
+.github/skills/
+.goose/
+.codex/
+.roo/
+.trae/
+.kiro/
+.kilocode/
+.neovate/
+.factory/
+.gemini/
+.clawdbot/

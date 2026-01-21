@@ -1,0 +1,38 @@
+{
+  "name": "example-skill",
+  "version": "1.0.0",
+  "description": "An example skill for testing",
+  "author": "Test Author",
+  "license": "MIT",
+  "entry": "SKILL.md",
+  "files": [
+    "SKILL.md",
+    "reference.md",
+    "templates/"
+  ],
+  "keywords": [
+    "example",
+    "testing",
+    "skill"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/example/skill"
+  },
+  "config": {
+    "outputDir": {
+      "type": "string",
+      "default": "./output",
+      "description": "Output directory for generated files"
+    },
+    "verbose": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enable verbose logging"
+    }
+  },
+  "compatibility": {
+    "claude": ">=3.5",
+    "cursor": ">=0.40"
+  }
+}
