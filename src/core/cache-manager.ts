@@ -16,15 +16,23 @@ import { clone, getCurrentCommit } from '../utils/git.js';
  * 
  * 缓存目录结构:
  * ~/.skpm-cache/
- * ├── github/
+ * ├── github/                          # 简写格式的 registry
  * │   └── user/
  * │       └── skill/
  * │           ├── v1.0.0/
  * │           └── v1.1.0/
- * └── gitlab.company.com/
+ * ├── github.com/                      # Git URL 格式，使用 host 作为目录
+ * │   └── user/
+ * │       └── private-skill/
+ * │           └── v1.0.0/
+ * └── gitlab.company.com/              # 私有 GitLab 实例
  *     └── team/
  *         └── skill/
  *             └── v2.0.0/
+ * 
+ * 对于 Git URL 格式 (SSH/HTTPS):
+ * - git@github.com:user/repo.git -> github.com/user/repo/version
+ * - https://gitlab.company.com/team/skill.git -> gitlab.company.com/team/skill/version
  */
 export class CacheManager {
   private cacheDir: string;
@@ -42,6 +50,11 @@ export class CacheManager {
 
   /**
    * 获取 skill 在缓存中的路径
+   * 
+   * 对于不同的引用格式，缓存路径如下:
+   * - github:user/repo@v1.0.0 -> ~/.skpm-cache/github/user/repo/v1.0.0
+   * - git@github.com:user/repo.git@v1.0.0 -> ~/.skpm-cache/github.com/user/repo/v1.0.0
+   * - https://gitlab.company.com/team/skill.git@v2.0.0 -> ~/.skpm-cache/gitlab.company.com/team/skill/v2.0.0
    */
   getSkillCachePath(parsed: ParsedSkillRef, version: string): string {
     return path.join(

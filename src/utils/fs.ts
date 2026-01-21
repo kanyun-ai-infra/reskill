@@ -193,3 +193,18 @@ export function getCacheDir(): string {
   const home = process.env.HOME || process.env.USERPROFILE || '';
   return process.env.SKPM_CACHE_DIR || path.join(home, '.skpm-cache');
 }
+
+/**
+ * Get home directory
+ */
+export function getHomeDir(): string {
+  return process.env.HOME || process.env.USERPROFILE || '';
+}
+
+/**
+ * Get global skills installation directory (~/.claude/skills)
+ */
+export function getGlobalSkillsDir(): string {
+  const home = getHomeDir();
+  return path.join(home, '.claude', 'skills');
+}

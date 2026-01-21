@@ -13,6 +13,53 @@ export interface GitTag {
 }
 
 /**
+ * Custom error class for Git clone failures
+ * Provides helpful tips for private repository authentication
+ */
+export class GitCloneError extends Error {
+  public readonly repoUrl: string;
+  public readonly originalError: Error;
+  public readonly isAuthError: boolean;
+
+  constructor(repoUrl: string, originalError: Error) {
+    const isAuthError = GitCloneError.isAuthenticationError(originalError.message);
+    
+    let message = `Failed to clone repository: ${repoUrl}`;
+    if (isAuthError) {
+      message += '\n\nTip: For private repos, ensure git SSH keys or credentials are configured:';
+      message += '\n  - SSH: Check ~/.ssh/id_rsa or ~/.ssh/id_ed25519';
+      message += '\n  - HTTPS: Run \'git config --global credential.helper store\'';
+      message += '\n  - Or use a personal access token in the URL';
+    }
+
+    super(message);
+    this.name = 'GitCloneError';
+    this.repoUrl = repoUrl;
+    this.originalError = originalError;
+    this.isAuthError = isAuthError;
+  }
+
+  /**
+   * Check if an error message indicates an authentication problem
+   */
+  static isAuthenticationError(message: string): boolean {
+    const authPatterns = [
+      /permission denied/i,
+      /could not read from remote/i,
+      /authentication failed/i,
+      /fatal: repository.*not found/i,
+      /host key verification failed/i,
+      /access denied/i,
+      /unauthorized/i,
+      /403/,
+      /401/,
+    ];
+
+    return authPatterns.some(pattern => pattern.test(message));
+  }
+}
+
+/**
  * Execute git command synchronously
  */
 export function gitSync(args: string[], cwd?: string): string {
@@ -86,6 +133,8 @@ export async function getLatestTag(repoUrl: string): Promise<GitTag | null> {
 
 /**
  * Clone a repository with shallow clone
+ * 
+ * @throws {GitCloneError} When clone fails, with helpful tips for authentication issues
  */
 export async function clone(
   repoUrl: string,
@@ -104,7 +153,11 @@ export async function clone(
   
   args.push(repoUrl, destPath);
   
-  await git(args);
+  try {
+    await git(args);
+  } catch (error) {
+    throw new GitCloneError(repoUrl, error as Error);
+  }
 }
 
 /**
@@ -185,4 +238,106 @@ export function buildRepoUrl(registry: string, ownerRepo: string): string {
 
   const baseUrl = registryUrls[registry] || `https://${registry}`;
   return `${baseUrl}/${ownerRepo}`;
+}
+
+// ============================================================================
+// Git URL Parsing Utilities
+// ============================================================================
+
+/**
+ * Parsed Git URL information
+ */
+export interface ParsedGitUrl {
+  /** Host name (e.g., github.com, gitlab.company.com) */
+  host: string;
+  /** Repository owner/organization */
+  owner: string;
+  /** Repository name (without .git suffix) */
+  repo: string;
+  /** Original URL */
+  url: string;
+  /** URL type: ssh, https, or git */
+  type: 'ssh' | 'https' | 'git';
+}
+
+/**
+ * Check if a source string is a complete Git URL (SSH, HTTPS, or git://)
+ * 
+ * Supported formats:
+ * - SSH: git@github.com:user/repo.git
+ * - HTTPS: https://github.com/user/repo.git
+ * - Git protocol: git://github.com/user/repo.git
+ * - URLs ending with .git
+ */
+export function isGitUrl(source: string): boolean {
+  return (
+    source.startsWith('git@') ||
+    source.startsWith('git://') ||
+    source.startsWith('http://') ||
+    source.startsWith('https://') ||
+    source.endsWith('.git')
+  );
+}
+
+/**
+ * Parse a Git URL and extract host, owner, and repo information
+ * 
+ * Supports:
+ * - SSH: git@github.com:user/repo.git
+ * - HTTPS: https://github.com/user/repo.git
+ * - Git protocol: git://github.com/user/repo.git
+ * 
+ * @param url The Git URL to parse
+ * @returns Parsed URL information or null if parsing fails
+ */
+export function parseGitUrl(url: string): ParsedGitUrl | null {
+  // Remove trailing .git if present
+  const cleanUrl = url.replace(/\.git$/, '');
+  
+  // SSH format: git@github.com:user/repo
+  const sshMatch = cleanUrl.match(/^git@([^:]+):(.+)$/);
+  if (sshMatch) {
+    const [, host, path] = sshMatch;
+    const parts = path.split('/');
+    if (parts.length >= 2) {
+      // Handle nested paths like org/sub/repo
+      const owner = parts.slice(0, -1).join('/');
+      const repo = parts[parts.length - 1];
+      return {
+        host,
+        owner,
+        repo,
+        url,
+        type: 'ssh',
+      };
+    }
+  }
+
+  // HTTPS/Git protocol format: https://github.com/user/repo or git://github.com/user/repo
+  const httpMatch = cleanUrl.match(/^(https?|git):\/\/([^/]+)\/(.+)$/);
+  if (httpMatch) {
+    const [, protocol, host, path] = httpMatch;
+    const parts = path.split('/');
+    if (parts.length >= 2) {
+      const owner = parts.slice(0, -1).join('/');
+      const repo = parts[parts.length - 1];
+      return {
+        host,
+        owner,
+        repo,
+        url,
+        type: protocol === 'git' ? 'git' : 'https',
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Get the repository name from a Git URL
+ */
+export function getRepoNameFromUrl(url: string): string | null {
+  const parsed = parseGitUrl(url);
+  return parsed ? parsed.repo : null;
 }

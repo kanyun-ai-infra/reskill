@@ -1,6 +1,6 @@
 import * as semver from 'semver';
 import type { ParsedSkillRef, ParsedVersion } from '../types/index.js';
-import { getRemoteTags, getLatestTag, buildRepoUrl, getDefaultBranch } from '../utils/git.js';
+import { getRemoteTags, getLatestTag, buildRepoUrl, getDefaultBranch, isGitUrl, parseGitUrl } from '../utils/git.js';
 
 /**
  * GitResolver - 解析 skill 引用和版本
@@ -8,6 +8,8 @@ import { getRemoteTags, getLatestTag, buildRepoUrl, getDefaultBranch } from '../
  * 引用格式:
  *   完整: <registry>:<owner>/<repo>@<version>
  *   简写: <owner>/<repo>@<version>
+ *   Git URL: git@github.com:user/repo.git[@version]
+ *   HTTPS: https://github.com/user/repo.git[@version]
  * 
  * 版本格式:
  *   - @v1.0.0       精确版本
@@ -26,11 +28,28 @@ export class GitResolver {
 
   /**
    * 解析 skill 引用字符串
+   * 
+   * 支持的格式:
+   * - 简写: owner/repo[@version]
+   * - 完整: registry:owner/repo[@version]
+   * - SSH URL: git@github.com:user/repo.git[@version]
+   * - HTTPS URL: https://github.com/user/repo.git[@version]
+   * - Monorepo: git@github.com:org/repo.git/subpath[@version]
    */
   parseRef(ref: string): ParsedSkillRef {
     const raw = ref;
-    let registry = this.defaultRegistry;
+
+    // 首先检查是否是 Git URL（SSH, HTTPS, git://）
+    // 对于 Git URL，需要特殊处理版本分隔符
+    // 格式: git@host:user/repo.git[@version] 或 git@host:user/repo.git/subpath[@version]
+    if (isGitUrl(ref)) {
+      return this.parseGitUrlRef(ref);
+    }
+
+    // 非 Git URL 的标准格式解析
     let remaining = ref;
+    let registry = this.defaultRegistry;
+    let version: string | undefined;
 
     // 检查是否有 registry 前缀 (github:, gitlab:, custom.com:)
     const registryMatch = remaining.match(/^([a-zA-Z0-9.-]+):(.+)$/);
@@ -40,7 +59,6 @@ export class GitResolver {
     }
 
     // 分离版本部分
-    let version: string | undefined;
     const atIndex = remaining.lastIndexOf('@');
     if (atIndex > 0) {
       version = remaining.slice(atIndex + 1);
@@ -66,6 +84,71 @@ export class GitResolver {
       subPath,
       version,
       raw,
+    };
+  }
+
+  /**
+   * 解析 Git URL 格式的引用
+   * 
+   * 支持的格式:
+   * - git@github.com:user/repo.git
+   * - git@github.com:user/repo.git@v1.0.0
+   * - git@github.com:user/repo.git/subpath@v1.0.0
+   * - https://github.com/user/repo.git
+   * - https://github.com/user/repo.git@v1.0.0
+   */
+  private parseGitUrlRef(ref: string): ParsedSkillRef {
+    const raw = ref;
+    let gitUrl = ref;
+    let version: string | undefined;
+    let subPath: string | undefined;
+
+    // 对于 .git 结尾的 URL，先检查是否有 /subpath@version 或 @version
+    // 格式: url.git/subpath@version 或 url.git@version
+    const gitSuffixIndex = ref.indexOf('.git');
+    if (gitSuffixIndex !== -1) {
+      const afterGit = ref.slice(gitSuffixIndex + 4);
+      
+      if (afterGit) {
+        // 检查版本 (@version)
+        const atIndex = afterGit.lastIndexOf('@');
+        if (atIndex !== -1) {
+          version = afterGit.slice(atIndex + 1);
+          const pathPart = afterGit.slice(0, atIndex);
+          if (pathPart.startsWith('/')) {
+            subPath = pathPart.slice(1);
+          }
+        } else if (afterGit.startsWith('/')) {
+          subPath = afterGit.slice(1);
+        }
+        
+        // 提取纯净的 Git URL（不包含 subpath 和 version）
+        gitUrl = ref.slice(0, gitSuffixIndex + 4);
+      }
+    } else {
+      // 没有 .git 后缀的 URL，尝试分离版本
+      const atIndex = ref.lastIndexOf('@');
+      // 对于 SSH URL，@ 在开头是正常的 (git@...)，需要跳过
+      if (atIndex > 4) { // 确保不是 git@host 中的 @
+        version = ref.slice(atIndex + 1);
+        gitUrl = ref.slice(0, atIndex);
+      }
+    }
+
+    // 解析 Git URL 获取 host, owner, repo
+    const parsed = parseGitUrl(gitUrl);
+    if (!parsed) {
+      throw new Error(`Invalid Git URL: ${ref}. Expected format: git@host:owner/repo.git or https://host/owner/repo.git`);
+    }
+
+    return {
+      registry: parsed.host,
+      owner: parsed.owner,
+      repo: parsed.repo,
+      subPath,
+      version,
+      raw,
+      gitUrl,
     };
   }
 
@@ -105,8 +188,15 @@ export class GitResolver {
 
   /**
    * 构建仓库 URL
+   * 
+   * 如果 parsed 中包含 gitUrl，则直接返回；
+   * 否则根据 registry 和 owner/repo 构建 HTTPS URL
    */
   buildRepoUrl(parsed: ParsedSkillRef): string {
+    // 如果有完整的 Git URL，直接返回
+    if (parsed.gitUrl) {
+      return parsed.gitUrl;
+    }
     return buildRepoUrl(parsed.registry, `${parsed.owner}/${parsed.repo}`);
   }
 

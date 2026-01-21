@@ -182,6 +182,8 @@ export interface ParsedSkillRef {
   version?: VersionSpec;
   /** 原始引用字符串 */
   raw: string;
+  /** 完整的 Git URL (SSH/HTTPS)，如果提供的话 */
+  gitUrl?: string;
 }
 
 /**

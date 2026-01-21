@@ -143,6 +143,153 @@ describe('GitResolver', () => {
       const parsed = resolver.parseRef('gitlab.company.com:team/repo');
       expect(resolver.buildRepoUrl(parsed)).toBe('https://gitlab.company.com/team/repo');
     });
+
+    it('should return gitUrl directly when present', () => {
+      const parsed = resolver.parseRef('git@github.com:user/repo.git');
+      expect(resolver.buildRepoUrl(parsed)).toBe('git@github.com:user/repo.git');
+    });
+  });
+
+  describe('parseRef with Git URLs', () => {
+    describe('SSH URLs', () => {
+      it('should parse basic SSH URL', () => {
+        const result = resolver.parseRef('git@github.com:user/skill.git');
+        expect(result).toEqual({
+          registry: 'github.com',
+          owner: 'user',
+          repo: 'skill',
+          subPath: undefined,
+          version: undefined,
+          raw: 'git@github.com:user/skill.git',
+          gitUrl: 'git@github.com:user/skill.git',
+        });
+      });
+
+      it('should parse SSH URL with version', () => {
+        const result = resolver.parseRef('git@github.com:user/skill.git@v1.0.0');
+        expect(result).toEqual({
+          registry: 'github.com',
+          owner: 'user',
+          repo: 'skill',
+          subPath: undefined,
+          version: 'v1.0.0',
+          raw: 'git@github.com:user/skill.git@v1.0.0',
+          gitUrl: 'git@github.com:user/skill.git',
+        });
+      });
+
+      it('should parse SSH URL with subpath', () => {
+        const result = resolver.parseRef('git@github.com:org/skills.git/pdf');
+        expect(result).toEqual({
+          registry: 'github.com',
+          owner: 'org',
+          repo: 'skills',
+          subPath: 'pdf',
+          version: undefined,
+          raw: 'git@github.com:org/skills.git/pdf',
+          gitUrl: 'git@github.com:org/skills.git',
+        });
+      });
+
+      it('should parse SSH URL with subpath and version', () => {
+        const result = resolver.parseRef('git@github.com:org/skills.git/pdf@v1.0.0');
+        expect(result).toEqual({
+          registry: 'github.com',
+          owner: 'org',
+          repo: 'skills',
+          subPath: 'pdf',
+          version: 'v1.0.0',
+          raw: 'git@github.com:org/skills.git/pdf@v1.0.0',
+          gitUrl: 'git@github.com:org/skills.git',
+        });
+      });
+
+      it('should parse SSH URL with nested subpath', () => {
+        const result = resolver.parseRef('git@github.com:org/skills.git/packages/pdf@latest');
+        expect(result).toEqual({
+          registry: 'github.com',
+          owner: 'org',
+          repo: 'skills',
+          subPath: 'packages/pdf',
+          version: 'latest',
+          raw: 'git@github.com:org/skills.git/packages/pdf@latest',
+          gitUrl: 'git@github.com:org/skills.git',
+        });
+      });
+
+      it('should parse private GitLab SSH URL', () => {
+        const result = resolver.parseRef('git@gitlab.company.com:team/private-skill.git@v2.0.0');
+        expect(result).toEqual({
+          registry: 'gitlab.company.com',
+          owner: 'team',
+          repo: 'private-skill',
+          subPath: undefined,
+          version: 'v2.0.0',
+          raw: 'git@gitlab.company.com:team/private-skill.git@v2.0.0',
+          gitUrl: 'git@gitlab.company.com:team/private-skill.git',
+        });
+      });
+    });
+
+    describe('HTTPS URLs', () => {
+      it('should parse basic HTTPS URL', () => {
+        const result = resolver.parseRef('https://github.com/user/skill.git');
+        expect(result).toEqual({
+          registry: 'github.com',
+          owner: 'user',
+          repo: 'skill',
+          subPath: undefined,
+          version: undefined,
+          raw: 'https://github.com/user/skill.git',
+          gitUrl: 'https://github.com/user/skill.git',
+        });
+      });
+
+      it('should parse HTTPS URL with version', () => {
+        const result = resolver.parseRef('https://github.com/user/skill.git@v1.0.0');
+        expect(result).toEqual({
+          registry: 'github.com',
+          owner: 'user',
+          repo: 'skill',
+          subPath: undefined,
+          version: 'v1.0.0',
+          raw: 'https://github.com/user/skill.git@v1.0.0',
+          gitUrl: 'https://github.com/user/skill.git',
+        });
+      });
+
+      it('should parse HTTPS URL with subpath and version', () => {
+        const result = resolver.parseRef('https://github.com/org/skills.git/pdf@v1.0.0');
+        expect(result).toEqual({
+          registry: 'github.com',
+          owner: 'org',
+          repo: 'skills',
+          subPath: 'pdf',
+          version: 'v1.0.0',
+          raw: 'https://github.com/org/skills.git/pdf@v1.0.0',
+          gitUrl: 'https://github.com/org/skills.git',
+        });
+      });
+
+      it('should parse private GitLab HTTPS URL', () => {
+        const result = resolver.parseRef('https://gitlab.company.com/team/skill.git@v2.0.0');
+        expect(result).toEqual({
+          registry: 'gitlab.company.com',
+          owner: 'team',
+          repo: 'skill',
+          subPath: undefined,
+          version: 'v2.0.0',
+          raw: 'https://gitlab.company.com/team/skill.git@v2.0.0',
+          gitUrl: 'https://gitlab.company.com/team/skill.git',
+        });
+      });
+    });
+
+    describe('Error cases', () => {
+      it('should throw for invalid Git URL format', () => {
+        expect(() => resolver.parseRef('git@invalid')).toThrow('Invalid Git URL');
+      });
+    });
   });
 });
 
@@ -152,5 +299,12 @@ describe('GitResolver integration', () => {
     const resolver = new GitResolver();
     const result = await resolver.resolve('OthmanAdi/planning-with-files@latest');
     expect(result.ref).toBeDefined();
+  });
+
+  it.skip('should resolve from SSH URL', async () => {
+    const resolver = new GitResolver();
+    const result = await resolver.resolve('git@github.com:OthmanAdi/planning-with-files.git@latest');
+    expect(result.ref).toBeDefined();
+    expect(result.parsed.gitUrl).toBe('git@github.com:OthmanAdi/planning-with-files.git');
   });
 });
