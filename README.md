@@ -36,7 +36,7 @@ reskill is a **Git-based package manager** for AI agent skills, similar to npm o
 
 ## Why reskill?
 
-Unlike one-time installers (add-skill) or centralized registries (skild), reskill offers **fine-grained skill management and synchronization**:
+reskill offers **fine-grained skill management and synchronization**:
 
 ### Local Experience
 
@@ -237,11 +237,19 @@ pnpm test
 pnpm typecheck
 ```
 
-## Related Projects
+## Acknowledgements
+
+reskill was inspired by and references the implementations of these excellent projects:
+
+- [add-skill](https://github.com/vercel-labs/add-skill) by Vercel Labs
+- [skild](https://github.com/Peiiii/skild) by Peiiii
+- [openskills](https://github.com/numman-ali/openskills) by Numman Ali
+
+Thanks to these projects for pioneering the AI agent skills ecosystem!
+
+## Related Links
 
 - [Agent Skills Specification](https://agentskills.io)
-- [add-skill](https://github.com/vercel-labs/add-skill) — One-time skill installer
-- [skild](https://github.com/Peiiii/skild) — Registry-based skill manager
 
 ## License
 

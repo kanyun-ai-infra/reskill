@@ -36,7 +36,7 @@ reskill 是一个**基于 Git 的包管理器**，用于管理 AI agent skills�
 
 ## 为什么选择 reskill？
 
-与一次性安装工具（add-skill）或中心化 Registry（skild）不同，reskill 提供**精细化的 skill 管理和同步方案**：
+reskill 提供**精细化的 skill 管理和同步方案**：
 
 ### 本地体验优化
 
@@ -238,11 +238,19 @@ pnpm test
 pnpm typecheck
 ```
 
-## 相关项目
+## 致谢
+
+reskill 的实现参考了以下优秀项目：
+
+- [add-skill](https://github.com/vercel-labs/add-skill) by Vercel Labs
+- [skild](https://github.com/Peiiii/skild) by Peiiii
+- [openskills](https://github.com/numman-ali/openskills) by Numman Ali
+
+感谢这些项目为 AI agent skills 生态系统做出的开创性贡献！
+
+## 相关链接
 
 - [Agent Skills 规范](https://agentskills.io)
-- [add-skill](https://github.com/vercel-labs/add-skill) — 一次性 skill 安装工具
-- [skild](https://github.com/Peiiii/skild) — 基于 Registry 的 skill 管理器
 
 ## 许可证
 
