@@ -4,6 +4,8 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Command } from 'commander';
+import { logger } from '../utils/logger.js';
+import { checkForUpdate, formatUpdateMessage } from '../utils/update-notifier.js';
 import {
   infoCommand,
   initCommand,
@@ -17,9 +19,7 @@ import {
 } from './commands/index.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const packageJson = JSON.parse(
-  readFileSync(join(__dirname, '../../package.json'), 'utf-8'),
-);
+const packageJson = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8'));
 
 const program = new Command();
 
@@ -39,5 +39,14 @@ program.addCommand(uninstallCommand);
 program.addCommand(linkCommand);
 program.addCommand(unlinkCommand);
 
-// Parse arguments
-program.parse();
+// Start update check in background (non-blocking)
+const updateCheckPromise = checkForUpdate(packageJson.name, packageJson.version);
+
+// Parse arguments and wait for async commands to complete
+program.parseAsync().then(async () => {
+  // After command execution, show update notification if available
+  const result = await updateCheckPromise;
+  if (result?.hasUpdate) {
+    logger.log(formatUpdateMessage(result));
+  }
+});
