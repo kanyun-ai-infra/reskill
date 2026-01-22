@@ -19,13 +19,13 @@
 
 ```bash
 # 1. 初始化项目
-npx reskill init
+npx reskill@latest init
 
 # 2. 安装 skill
-npx reskill install github:anthropics/skills/frontend-design@latest
+npx reskill@latest install github:anthropics/skills/frontend-design@latest
 
 # 3. 列出已安装的 skills
-npx reskill list
+npx reskill@latest list
 ```
 
 ## 什么是 reskill？
@@ -77,12 +77,17 @@ reskill 提供**精细化的 skill 管理和同步方案**：
 ## 安装
 
 ```bash
-# 全局安装
+# 全局安装（推荐常态化使用）
 npm install -g reskill
 
-# 或使用 npx
+# 或使用 npx（推荐加 @latest 确保最新版本）
+npx reskill@latest <command>
+
+# 单次使用也可以直接 npx reskill
 npx reskill <command>
 ```
+
+> **注意：** 使用 `npx` 时，建议使用 `npx reskill@latest` 以确保使用最新版本。不加 `@latest` 时，npx 可能会使用缓存的旧版本。
 
 ## 使用方式
 
@@ -90,22 +95,22 @@ npx reskill <command>
 
 ```bash
 # GitHub 简写
-npx reskill install github:user/skill@v1.0.0
+npx reskill@latest install github:user/skill@v1.0.0
 
 # 完整 Git URL
-npx reskill install https://github.com/user/skill.git
+npx reskill@latest install https://github.com/user/skill.git
 
 # GitHub 网页 URL（支持分支和子路径）
-npx reskill install https://github.com/vercel-labs/agent-skills/tree/main/skills/web-design-guidelines
+npx reskill@latest install https://github.com/vercel-labs/agent-skills/tree/main/skills/web-design-guidelines
 
 # GitLab
-npx reskill install gitlab:group/skill@latest
+npx reskill@latest install gitlab:group/skill@latest
 
 # 私有 Registry
-npx reskill install gitlab.company.com:team/skill@v1.0.0
+npx reskill@latest install gitlab.company.com:team/skill@v1.0.0
 
 # 默认 Registry（来自 skills.json）
-npx reskill install user/skill@v1.0.0
+npx reskill@latest install user/skill@v1.0.0
 ```
 
 ### 版本规范
@@ -120,37 +125,37 @@ npx reskill install user/skill@v1.0.0
 
 ## 命令
 
-无需全局安装，直接使用 `npx reskill`：
+无需全局安装，直接使用 `npx reskill@latest`：
 
 ```bash
 # 初始化项目
-npx reskill init
+npx reskill@latest init
 
 # 从 GitHub 安装 skill
-npx reskill install github:anthropics/skills/frontend-design@latest
+npx reskill@latest install github:anthropics/skills/frontend-design@latest
 
 # 从私有 GitLab 安装
-npx reskill install gitlab.company.com:team/internal-skill@v1.0.0
+npx reskill@latest install gitlab.company.com:team/internal-skill@v1.0.0
 
 # 列出已安装的 skills
-npx reskill list
+npx reskill@latest list
 ```
 
 ### 命令参考
 
 | 命令 | 说明 |
 |------|------|
-| `npx reskill init` | 在当前目录初始化 `skills.json` |
-| `npx reskill install [skill]` | 安装 `skills.json` 中的所有 skills 或指定 skill |
-| `npx reskill list` | 列出已安装的 skills |
-| `npx reskill info <skill>` | 查看 skill 详情 |
-| `npx reskill update [skill]` | 更新所有或指定 skill |
-| `npx reskill outdated` | 检查过期的 skills |
-| `npx reskill uninstall <skill>` | 卸载 skill |
-| `npx reskill link <path>` | 链接本地 skill（开发用） |
-| `npx reskill unlink <skill>` | 取消链接本地 skill |
+| `npx reskill@latest init` | 在当前目录初始化 `skills.json` |
+| `npx reskill@latest install [skill]` | 安装 `skills.json` 中的所有 skills 或指定 skill |
+| `npx reskill@latest list` | 列出已安装的 skills |
+| `npx reskill@latest info <skill>` | 查看 skill 详情 |
+| `npx reskill@latest update [skill]` | 更新所有或指定 skill |
+| `npx reskill@latest outdated` | 检查过期的 skills |
+| `npx reskill@latest uninstall <skill>` | 卸载 skill |
+| `npx reskill@latest link <path>` | 链接本地 skill（开发用） |
+| `npx reskill@latest unlink <skill>` | 取消链接本地 skill |
 
-运行 `npx reskill <command> --help` 查看详细选项。
+运行 `npx reskill@latest <command> --help` 查看详细选项。
 
 ## 私有 GitLab 支持
 
@@ -164,10 +169,10 @@ reskill 自动使用你已有的 SSH 配置：
 
 ```bash
 # 自动使用 ~/.ssh/id_rsa 或 ~/.ssh/id_ed25519
-npx reskill install gitlab.company.com:team/private-skill@v1.0.0
+npx reskill@latest install gitlab.company.com:team/private-skill@v1.0.0
 
 # 或使用显式的 SSH URL
-npx reskill install git@gitlab.company.com:team/private-skill.git@v1.0.0
+npx reskill@latest install git@gitlab.company.com:team/private-skill.git@v1.0.0
 ```
 
 确保你的 SSH key 已添加到 GitLab，并且 ssh-agent 正在运行。
@@ -214,10 +219,10 @@ before_script:
 
 ```bash
 # 直接安装
-npx reskill install git.mycompany.io:team/skill@v1.0.0
+npx reskill@latest install git.mycompany.io:team/skill@v1.0.0
 
 # 使用显式的 SSH URL
-npx reskill install git@git.mycompany.io:team/skill.git@v1.0.0
+npx reskill@latest install git@git.mycompany.io:team/skill.git@v1.0.0
 ```
 
 ## 配置

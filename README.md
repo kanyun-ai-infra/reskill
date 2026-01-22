@@ -19,13 +19,13 @@ English | [简体中文](./README.zh-CN.md)
 
 ```bash
 # 1. Initialize project
-npx reskill init
+npx reskill@latest init
 
 # 2. Install a skill
-npx reskill install github:anthropics/skills/frontend-design@latest
+npx reskill@latest install github:anthropics/skills/frontend-design@latest
 
 # 3. List installed skills
-npx reskill list
+npx reskill@latest list
 ```
 
 ## What is reskill?
@@ -76,12 +76,17 @@ When running `reskill update`:
 ## Installation
 
 ```bash
-# Global install
+# Global install (recommended for regular use)
 npm install -g reskill
 
-# Or use npx
+# Or use npx with @latest (recommended for ongoing skill management)
+npx reskill@latest <command>
+
+# For one-time use, npx reskill also works
 npx reskill <command>
 ```
+
+> **Note:** When using `npx`, we recommend `npx reskill@latest` to ensure you always get the latest version. Without `@latest`, npx may use a cached older version.
 
 ## Usage
 
@@ -89,22 +94,22 @@ npx reskill <command>
 
 ```bash
 # GitHub shorthand
-npx reskill install github:user/skill@v1.0.0
+npx reskill@latest install github:user/skill@v1.0.0
 
 # Full Git URL
-npx reskill install https://github.com/user/skill.git
+npx reskill@latest install https://github.com/user/skill.git
 
 # GitHub web URL (with branch and subpath)
-npx reskill install https://github.com/vercel-labs/agent-skills/tree/main/skills/web-design-guidelines
+npx reskill@latest install https://github.com/vercel-labs/agent-skills/tree/main/skills/web-design-guidelines
 
 # GitLab
-npx reskill install gitlab:group/skill@latest
+npx reskill@latest install gitlab:group/skill@latest
 
 # Private registry
-npx reskill install gitlab.company.com:team/skill@v1.0.0
+npx reskill@latest install gitlab.company.com:team/skill@v1.0.0
 
 # Default registry (from skills.json)
-npx reskill install user/skill@v1.0.0
+npx reskill@latest install user/skill@v1.0.0
 ```
 
 ### Version Specification
@@ -119,37 +124,37 @@ npx reskill install user/skill@v1.0.0
 
 ## Commands
 
-You can use `npx reskill` directly without global installation:
+You can use `npx reskill@latest` directly without global installation:
 
 ```bash
 # Initialize project
-npx reskill init
+npx reskill@latest init
 
 # Install a skill from GitHub
-npx reskill install github:anthropics/skills/frontend-design@latest
+npx reskill@latest install github:anthropics/skills/frontend-design@latest
 
 # Install from private GitLab
-npx reskill install gitlab.company.com:team/internal-skill@v1.0.0
+npx reskill@latest install gitlab.company.com:team/internal-skill@v1.0.0
 
 # List installed skills
-npx reskill list
+npx reskill@latest list
 ```
 
 ### Command Reference
 
 | Command | Description |
 |---------|-------------|
-| `npx reskill init` | Initialize `skills.json` in current directory |
-| `npx reskill install [skill]` | Install skills from `skills.json` or a specific skill |
-| `npx reskill list` | List installed skills |
-| `npx reskill info <skill>` | Show skill details |
-| `npx reskill update [skill]` | Update all or specific skill |
-| `npx reskill outdated` | Check for outdated skills |
-| `npx reskill uninstall <skill>` | Remove a skill |
-| `npx reskill link <path>` | Link local skill for development |
-| `npx reskill unlink <skill>` | Unlink a local skill |
+| `npx reskill@latest init` | Initialize `skills.json` in current directory |
+| `npx reskill@latest install [skill]` | Install skills from `skills.json` or a specific skill |
+| `npx reskill@latest list` | List installed skills |
+| `npx reskill@latest info <skill>` | Show skill details |
+| `npx reskill@latest update [skill]` | Update all or specific skill |
+| `npx reskill@latest outdated` | Check for outdated skills |
+| `npx reskill@latest uninstall <skill>` | Remove a skill |
+| `npx reskill@latest link <path>` | Link local skill for development |
+| `npx reskill@latest unlink <skill>` | Unlink a local skill |
 
-Run `npx reskill <command> --help` for detailed options.
+Run `npx reskill@latest <command> --help` for detailed options.
 
 ## Private GitLab Support
 
@@ -163,10 +168,10 @@ reskill uses your existing SSH configuration automatically:
 
 ```bash
 # Uses your ~/.ssh/id_rsa or ~/.ssh/id_ed25519 automatically
-npx reskill install gitlab.company.com:team/private-skill@v1.0.0
+npx reskill@latest install gitlab.company.com:team/private-skill@v1.0.0
 
 # Or with explicit SSH URL
-npx reskill install git@gitlab.company.com:team/private-skill.git@v1.0.0
+npx reskill@latest install git@gitlab.company.com:team/private-skill.git@v1.0.0
 ```
 
 Ensure your SSH key is added to GitLab and ssh-agent is running.
@@ -213,10 +218,10 @@ For self-hosted GitLab instances with custom domains:
 
 ```bash
 # Direct installation
-npx reskill install git.mycompany.io:team/skill@v1.0.0
+npx reskill@latest install git.mycompany.io:team/skill@v1.0.0
 
 # With explicit SSH URL
-npx reskill install git@git.mycompany.io:team/skill.git@v1.0.0
+npx reskill@latest install git@git.mycompany.io:team/skill.git@v1.0.0
 ```
 
 ## Configuration
