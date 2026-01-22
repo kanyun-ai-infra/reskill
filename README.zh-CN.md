@@ -2,7 +2,7 @@
 
 # reskill
 
-**基于 Git 的 AI Agent Skills 包管理器**
+**基于 Git 的 AI Agent Skills  包管理器**
 
 *类似 npm/Go modules 的声明式 skill 管理 — 安装、版本控制、同步和共享 AI agent skills*
 
