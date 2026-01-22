@@ -118,6 +118,7 @@ export class LockManager {
     options: {
       source: string;
       version: string;
+      ref: string;
       resolved: string;
       commit: string;
     },
@@ -125,6 +126,7 @@ export class LockManager {
     const lockedSkill: LockedSkill = {
       source: options.source,
       version: options.version,
+      ref: options.ref,
       resolved: options.resolved,
       commit: options.commit,
       installedAt: new Date().toISOString(),

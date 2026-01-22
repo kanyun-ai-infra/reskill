@@ -51,7 +51,8 @@ describe('LockManager', () => {
         skills: {
           'my-skill': {
             source: 'github:user/skill',
-            version: 'v1.0.0',
+            version: '1.0.0',
+            ref: 'v1.0.0',
             resolved: 'https://github.com/user/skill',
             commit: 'abc123',
             installedAt: '2025-01-21T10:00:00Z',
@@ -61,7 +62,8 @@ describe('LockManager', () => {
       fs.writeFileSync(path.join(tempDir, 'skills.lock'), JSON.stringify(testLock));
 
       const lock = lockManager.load();
-      expect(lock.skills['my-skill'].version).toBe('v1.0.0');
+      expect(lock.skills['my-skill'].version).toBe('1.0.0');
+      expect(lock.skills['my-skill'].ref).toBe('v1.0.0');
     });
 
     it('should throw on invalid JSON', () => {
@@ -74,14 +76,16 @@ describe('LockManager', () => {
     it('should save lock file', () => {
       lockManager.lockSkill('my-skill', {
         source: 'github:user/skill',
-        version: 'v1.0.0',
+        version: '1.0.0',
+        ref: 'v1.0.0',
         resolved: 'https://github.com/user/skill',
         commit: 'abc123',
       });
 
       const content = fs.readFileSync(path.join(tempDir, 'skills.lock'), 'utf-8');
       const parsed = JSON.parse(content);
-      expect(parsed.skills['my-skill'].version).toBe('v1.0.0');
+      expect(parsed.skills['my-skill'].version).toBe('1.0.0');
+      expect(parsed.skills['my-skill'].ref).toBe('v1.0.0');
     });
   });
 
@@ -89,14 +93,16 @@ describe('LockManager', () => {
     it('should get and set locked skill', () => {
       lockManager.set('my-skill', {
         source: 'github:user/skill',
-        version: 'v1.0.0',
+        version: '1.0.0',
+        ref: 'v1.0.0',
         resolved: 'https://github.com/user/skill',
         commit: 'abc123',
         installedAt: '2025-01-21T10:00:00Z',
       });
 
       const skill = lockManager.get('my-skill');
-      expect(skill?.version).toBe('v1.0.0');
+      expect(skill?.version).toBe('1.0.0');
+      expect(skill?.ref).toBe('v1.0.0');
       expect(skill?.commit).toBe('abc123');
     });
 
@@ -111,7 +117,8 @@ describe('LockManager', () => {
 
       const locked = lockManager.lockSkill('my-skill', {
         source: 'github:user/skill',
-        version: 'v1.0.0',
+        version: '1.0.0',
+        ref: 'v1.0.0',
         resolved: 'https://github.com/user/skill',
         commit: 'abc123',
       });
@@ -119,7 +126,8 @@ describe('LockManager', () => {
       const after = new Date();
       const installedAt = new Date(locked.installedAt);
 
-      expect(locked.version).toBe('v1.0.0');
+      expect(locked.version).toBe('1.0.0');
+      expect(locked.ref).toBe('v1.0.0');
       expect(installedAt.getTime()).toBeGreaterThanOrEqual(before.getTime());
       expect(installedAt.getTime()).toBeLessThanOrEqual(after.getTime());
     });
@@ -129,7 +137,8 @@ describe('LockManager', () => {
     it('should remove locked skill', () => {
       lockManager.lockSkill('my-skill', {
         source: 'github:user/skill',
-        version: 'v1.0.0',
+        version: '1.0.0',
+        ref: 'v1.0.0',
         resolved: 'https://github.com/user/skill',
         commit: 'abc123',
       });
@@ -148,7 +157,8 @@ describe('LockManager', () => {
     it('should return true for locked skill', () => {
       lockManager.lockSkill('my-skill', {
         source: 'github:user/skill',
-        version: 'v1.0.0',
+        version: '1.0.0',
+        ref: 'v1.0.0',
         resolved: 'https://github.com/user/skill',
         commit: 'abc123',
       });
@@ -165,27 +175,29 @@ describe('LockManager', () => {
     it('should return true when version matches', () => {
       lockManager.lockSkill('my-skill', {
         source: 'github:user/skill',
-        version: 'v1.0.0',
+        version: '1.0.0',
+        ref: 'v1.0.0',
         resolved: 'https://github.com/user/skill',
         commit: 'abc123',
       });
 
-      expect(lockManager.isVersionMatch('my-skill', 'v1.0.0')).toBe(true);
+      expect(lockManager.isVersionMatch('my-skill', '1.0.0')).toBe(true);
     });
 
     it('should return false when version does not match', () => {
       lockManager.lockSkill('my-skill', {
         source: 'github:user/skill',
-        version: 'v1.0.0',
+        version: '1.0.0',
+        ref: 'v1.0.0',
         resolved: 'https://github.com/user/skill',
         commit: 'abc123',
       });
 
-      expect(lockManager.isVersionMatch('my-skill', 'v2.0.0')).toBe(false);
+      expect(lockManager.isVersionMatch('my-skill', '2.0.0')).toBe(false);
     });
 
     it('should return false for non-existent skill', () => {
-      expect(lockManager.isVersionMatch('non-existent', 'v1.0.0')).toBe(false);
+      expect(lockManager.isVersionMatch('non-existent', '1.0.0')).toBe(false);
     });
   });
 
@@ -193,21 +205,25 @@ describe('LockManager', () => {
     it('should return all locked skills', () => {
       lockManager.lockSkill('skill1', {
         source: 'github:user/skill1',
-        version: 'v1.0.0',
+        version: '1.0.0',
+        ref: 'v1.0.0',
         resolved: 'https://github.com/user/skill1',
         commit: 'abc123',
       });
       lockManager.lockSkill('skill2', {
         source: 'github:user/skill2',
-        version: 'v2.0.0',
+        version: '2.0.0',
+        ref: 'v2.0.0',
         resolved: 'https://github.com/user/skill2',
         commit: 'def456',
       });
 
       const all = lockManager.getAll();
       expect(Object.keys(all)).toHaveLength(2);
-      expect(all.skill1.version).toBe('v1.0.0');
-      expect(all.skill2.version).toBe('v2.0.0');
+      expect(all.skill1.version).toBe('1.0.0');
+      expect(all.skill1.ref).toBe('v1.0.0');
+      expect(all.skill2.version).toBe('2.0.0');
+      expect(all.skill2.ref).toBe('v2.0.0');
     });
   });
 
@@ -215,7 +231,8 @@ describe('LockManager', () => {
     it('should clear all locked skills', () => {
       lockManager.lockSkill('skill1', {
         source: 'github:user/skill1',
-        version: 'v1.0.0',
+        version: '1.0.0',
+        ref: 'v1.0.0',
         resolved: 'https://github.com/user/skill1',
         commit: 'abc123',
       });

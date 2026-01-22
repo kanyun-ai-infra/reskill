@@ -3,14 +3,16 @@
   "skills": {
     "planning-with-files": {
       "source": "github:OthmanAdi/planning-with-files",
-      "version": "v1.0.0",
+      "version": "1.0.0",
+      "ref": "v1.0.0",
       "resolved": "https://github.com/OthmanAdi/planning-with-files",
       "commit": "abc1234def5678901234567890abcdef12345678",
       "installedAt": "2025-01-21T10:30:00Z"
     },
     "code-review": {
       "source": "gitlab:cortex/skills/code-review",
-      "version": "v2.1.0",
+      "version": "2.1.0",
+      "ref": "v2.1.0",
       "resolved": "https://gitlab.com/cortex/skills/code-review",
       "commit": "def5678abc1234567890abcdef1234567890abcd",
       "installedAt": "2025-01-21T10:30:00Z"

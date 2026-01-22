@@ -134,7 +134,7 @@ export class SkillManager {
     // Parse reference
     const resolved = await this.resolver.resolve(ref);
     const { parsed, repoUrl } = resolved;
-    const version = resolved.ref;
+    const gitRef = resolved.ref; // Git reference (tag, branch, commit)
     const skillName = parsed.subPath ? path.basename(parsed.subPath) : parsed.repo;
 
     const skillPath = this.getSkillPath(skillName);
@@ -142,8 +142,10 @@ export class SkillManager {
     // Check if already installed
     if (exists(skillPath) && !force) {
       const locked = this.lockManager.get(skillName);
-      if (locked && locked.version === version) {
-        logger.info(`${skillName}@${version} is already installed`);
+      // Compare ref if available, fallback to version for backward compatibility
+      const lockedRef = locked?.ref || locked?.version;
+      if (locked && lockedRef === gitRef) {
+        logger.info(`${skillName}@${gitRef} is already installed`);
         const installed = this.getInstalledSkill(skillName);
         if (installed) return installed;
       }
@@ -155,16 +157,16 @@ export class SkillManager {
       }
     }
 
-    logger.package(`Installing ${skillName}@${version}...`);
+    logger.package(`Installing ${skillName}@${gitRef}...`);
 
     // Check cache
-    let cacheResult = await this.cache.get(parsed, version);
+    let cacheResult = await this.cache.get(parsed, gitRef);
 
     if (!cacheResult) {
-      logger.debug(`Caching ${skillName}@${version} from ${repoUrl}`);
-      cacheResult = await this.cache.cache(repoUrl, parsed, version, version);
+      logger.debug(`Caching ${skillName}@${gitRef} from ${repoUrl}`);
+      cacheResult = await this.cache.cache(repoUrl, parsed, gitRef, gitRef);
     } else {
-      logger.debug(`Using cached ${skillName}@${version}`);
+      logger.debug(`Using cached ${skillName}@${gitRef}`);
     }
 
     // Copy to installation directory
@@ -174,13 +176,28 @@ export class SkillManager {
       remove(skillPath);
     }
 
-    await this.cache.copyTo(parsed, version, skillPath);
+    await this.cache.copyTo(parsed, gitRef, skillPath);
+
+    // Read semantic version from skill.json
+    let semanticVersion = gitRef; // fallback to gitRef if no skill.json
+    const skillJsonPath = path.join(skillPath, 'skill.json');
+    if (exists(skillJsonPath)) {
+      try {
+        const skillJson = readJson<SkillJson>(skillJsonPath);
+        if (skillJson.version) {
+          semanticVersion = skillJson.version;
+        }
+      } catch {
+        // Ignore parse errors, use gitRef as fallback
+      }
+    }
 
     // Update lock file (project mode only)
     if (!this.isGlobal) {
       this.lockManager.lockSkill(skillName, {
         source: `${parsed.registry}:${parsed.owner}/${parsed.repo}${parsed.subPath ? `/${parsed.subPath}` : ''}`,
-        version,
+        version: semanticVersion,
+        ref: gitRef,
         resolved: repoUrl,
         commit: cacheResult.commit,
       });
@@ -192,8 +209,9 @@ export class SkillManager {
       this.config.addSkill(skillName, ref);
     }
 
+    const displayVersion = semanticVersion !== gitRef ? `${semanticVersion} (${gitRef})` : gitRef;
     const locationHint = this.isGlobal ? '(global)' : '';
-    logger.success(`Installed ${skillName}@${version} to ${skillPath} ${locationHint}`.trim());
+    logger.success(`Installed ${skillName}@${displayVersion} to ${skillPath} ${locationHint}`.trim());
 
     const installed = this.getInstalledSkill(skillName);
     if (!installed) {
@@ -498,7 +516,9 @@ export class SkillManager {
     for (const [name, ref] of Object.entries(skills)) {
       try {
         const locked = this.lockManager.get(name);
-        const current = locked?.version || 'unknown';
+        // Use ref for comparison (git tag/branch/commit), fallback to version for backward compatibility
+        const currentRef = locked?.ref || locked?.version || 'unknown';
+        const currentVersion = locked?.version || 'unknown';
 
         // Parse latest version
         const parsed = this.resolver.parseRef(ref);
@@ -512,11 +532,12 @@ export class SkillManager {
         });
 
         const latest = latestResolved.ref;
-        const updateAvailable = current !== latest && current !== 'unknown';
+        // Compare using git refs, not semantic versions
+        const updateAvailable = currentRef !== latest && currentRef !== 'unknown';
 
         results.push({
           name,
-          current,
+          current: currentVersion !== currentRef ? `${currentVersion} (${currentRef})` : currentRef,
           latest,
           updateAvailable,
         });
@@ -558,23 +579,37 @@ export class SkillManager {
     // Parse reference
     const resolved = await this.resolver.resolve(ref);
     const { parsed, repoUrl } = resolved;
-    const version = resolved.ref;
+    const gitRef = resolved.ref; // Git reference (tag, branch, commit)
     const skillName = parsed.subPath ? path.basename(parsed.subPath) : parsed.repo;
 
-    logger.package(`Installing ${skillName}@${version} to ${targetAgents.length} agent(s)...`);
+    logger.package(`Installing ${skillName}@${gitRef} to ${targetAgents.length} agent(s)...`);
 
     // Check cache
-    let cacheResult = await this.cache.get(parsed, version);
+    let cacheResult = await this.cache.get(parsed, gitRef);
 
     if (!cacheResult) {
-      logger.debug(`Caching ${skillName}@${version} from ${repoUrl}`);
-      cacheResult = await this.cache.cache(repoUrl, parsed, version, version);
+      logger.debug(`Caching ${skillName}@${gitRef} from ${repoUrl}`);
+      cacheResult = await this.cache.cache(repoUrl, parsed, gitRef, gitRef);
     } else {
-      logger.debug(`Using cached ${skillName}@${version}`);
+      logger.debug(`Using cached ${skillName}@${gitRef}`);
     }
 
     // Get cache path as source
-    const sourcePath = this.cache.getCachePath(parsed, version);
+    const sourcePath = this.cache.getCachePath(parsed, gitRef);
+
+    // Read semantic version from skill.json
+    let semanticVersion = gitRef; // fallback to gitRef if no skill.json
+    const skillJsonPath = path.join(sourcePath, 'skill.json');
+    if (exists(skillJsonPath)) {
+      try {
+        const skillJson = readJson<SkillJson>(skillJsonPath);
+        if (skillJson.version) {
+          semanticVersion = skillJson.version;
+        }
+      } catch {
+        // Ignore parse errors, use gitRef as fallback
+      }
+    }
 
     // Create Installer
     const installer = new Installer({
@@ -591,7 +626,8 @@ export class SkillManager {
     if (!this.isGlobal) {
       this.lockManager.lockSkill(skillName, {
         source: `${parsed.registry}:${parsed.owner}/${parsed.repo}${parsed.subPath ? `/${parsed.subPath}` : ''}`,
-        version,
+        version: semanticVersion,
+        ref: gitRef,
         resolved: repoUrl,
         commit: cacheResult.commit,
       });
@@ -607,11 +643,12 @@ export class SkillManager {
     const successCount = Array.from(results.values()).filter((r) => r.success).length;
     const failCount = results.size - successCount;
 
+    const displayVersion = semanticVersion !== gitRef ? `${semanticVersion} (${gitRef})` : gitRef;
     if (failCount === 0) {
-      logger.success(`Installed ${skillName}@${version} to ${successCount} agent(s)`);
+      logger.success(`Installed ${skillName}@${displayVersion} to ${successCount} agent(s)`);
     } else {
       logger.warn(
-        `Installed ${skillName}@${version} to ${successCount} agent(s), ${failCount} failed`,
+        `Installed ${skillName}@${displayVersion} to ${successCount} agent(s), ${failCount} failed`,
       );
     }
 
@@ -619,7 +656,7 @@ export class SkillManager {
     const skill: InstalledSkill = {
       name: skillName,
       path: sourcePath,
-      version,
+      version: semanticVersion,
       source: `${parsed.registry}:${parsed.owner}/${parsed.repo}${parsed.subPath ? `/${parsed.subPath}` : ''}`,
     };
 

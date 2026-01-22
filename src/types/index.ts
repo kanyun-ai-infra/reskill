@@ -113,8 +113,10 @@ export interface SkillsJson {
 export interface LockedSkill {
   /** Source, e.g., github:user/repo */
   source: string;
-  /** Version number */
+  /** Semantic version from skill.json */
   version: string;
+  /** Git reference (tag, branch, commit) used for installation */
+  ref: string;
   /** Resolved full URL */
   resolved: string;
   /** Exact commit hash */
