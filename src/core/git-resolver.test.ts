@@ -245,6 +245,45 @@ describe('GitResolver', () => {
         });
       });
 
+      it('should parse GitHub web URL with tree/branch/path', () => {
+        const result = resolver.parseRef('https://github.com/vercel-labs/agent-skills/tree/main/skills/frontend-design');
+        expect(result).toEqual({
+          registry: 'github.com',
+          owner: 'vercel-labs',
+          repo: 'agent-skills',
+          subPath: 'skills/frontend-design',
+          version: 'branch:main',
+          raw: 'https://github.com/vercel-labs/agent-skills/tree/main/skills/frontend-design',
+          gitUrl: 'https://github.com/vercel-labs/agent-skills.git',
+        });
+      });
+
+      it('should parse GitHub web URL with blob', () => {
+        const result = resolver.parseRef('https://github.com/user/repo/blob/dev/src/skill');
+        expect(result).toEqual({
+          registry: 'github.com',
+          owner: 'user',
+          repo: 'repo',
+          subPath: 'src/skill',
+          version: 'branch:dev',
+          raw: 'https://github.com/user/repo/blob/dev/src/skill',
+          gitUrl: 'https://github.com/user/repo.git',
+        });
+      });
+
+      it('should parse GitHub web URL without subpath', () => {
+        const result = resolver.parseRef('https://github.com/user/repo/tree/main');
+        expect(result).toEqual({
+          registry: 'github.com',
+          owner: 'user',
+          repo: 'repo',
+          subPath: undefined,
+          version: 'branch:main',
+          raw: 'https://github.com/user/repo/tree/main',
+          gitUrl: 'https://github.com/user/repo.git',
+        });
+      });
+
       it('should parse HTTPS URL with version', () => {
         const result = resolver.parseRef('https://github.com/user/skill.git@v1.0.0');
         expect(result).toEqual({

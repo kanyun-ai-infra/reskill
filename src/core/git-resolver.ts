@@ -103,12 +103,38 @@ export class GitResolver {
    * - git@github.com:user/repo.git/subpath@v1.0.0
    * - https://github.com/user/repo.git
    * - https://github.com/user/repo.git@v1.0.0
+   * - https://github.com/user/repo/tree/branch/path (GitHub web URL)
    */
   private parseGitUrlRef(ref: string): ParsedSkillRef {
     const raw = ref;
     let gitUrl = ref;
     let version: string | undefined;
     let subPath: string | undefined;
+
+    // Check for GitHub/GitLab web URL format: https://github.com/user/repo/tree/branch/path
+    const webUrlMatch = ref.match(/^(https?:\/\/[^/]+)\/([^/]+)\/([^/]+)\/(tree|blob|raw)\/([^/]+)(?:\/(.+))?$/);
+    if (webUrlMatch) {
+      const [, baseUrl, owner, repo, , branch, path] = webUrlMatch;
+      
+      // Build standard Git URL
+      gitUrl = `${baseUrl}/${owner}/${repo}.git`;
+      
+      // Extract branch as version
+      version = `branch:${branch}`;
+      
+      // Extract subpath
+      subPath = path;
+      
+      return {
+        registry: new URL(baseUrl).hostname,
+        owner,
+        repo,
+        subPath,
+        version,
+        raw,
+        gitUrl,
+      };
+    }
 
     // For URLs ending with .git, first check for /subpath@version or @version
     // Format: url.git/subpath@version or url.git@version

@@ -92,8 +92,11 @@ npx reskill <command>
 # GitHub 简写
 npx reskill install github:user/skill@v1.0.0
 
-# 完整 URL
-npx reskill install https://github.com/user/skill
+# 完整 Git URL
+npx reskill install https://github.com/user/skill.git
+
+# GitHub 网页 URL（支持分支和子路径）
+npx reskill install https://github.com/vercel-labs/agent-skills/tree/main/skills/web-design-guidelines
 
 # GitLab
 npx reskill install gitlab:group/skill@latest

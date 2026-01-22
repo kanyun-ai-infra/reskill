@@ -91,8 +91,11 @@ npx reskill <command>
 # GitHub shorthand
 npx reskill install github:user/skill@v1.0.0
 
-# Full URL
-npx reskill install https://github.com/user/skill
+# Full Git URL
+npx reskill install https://github.com/user/skill.git
+
+# GitHub web URL (with branch and subpath)
+npx reskill install https://github.com/vercel-labs/agent-skills/tree/main/skills/web-design-guidelines
 
 # GitLab
 npx reskill install gitlab:group/skill@latest

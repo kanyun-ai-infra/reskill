@@ -308,6 +308,9 @@ export function isGitUrl(source: string): boolean {
  * - HTTPS: https://github.com/user/repo.git
  * - Git protocol: git://github.com/user/repo.git
  *
+ * Note: GitHub/GitLab web URLs (with /tree/, /blob/, etc.) are handled
+ * at a higher level in GitResolver.parseGitUrlRef() before calling this function.
+ *
  * @param url The Git URL to parse
  * @returns Parsed URL information or null if parsing fails
  */
