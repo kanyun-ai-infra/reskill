@@ -33,10 +33,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Configure AWS Credentials (OIDC)
+      - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-west-2
 
       - name: Generate GitHub App token
@@ -51,5 +52,5 @@ jobs:
         with:
           use_bedrock: "true"
           claude_args: |
-            --model anthropic.claude-sonnet-4-20250514-v1:0
+            --model arn:aws:bedrock:us-west-2:027950631154:application-inference-profile/wlcpp1q16dge
           github_token: ${{ steps.app-token.outputs.token }}
