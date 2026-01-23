@@ -102,11 +102,12 @@ describe('install command', () => {
       expect(installCommand.aliases()).toContain('i');
     });
 
-    it('should have skill argument (optional)', () => {
+    it('should have skills argument (optional, variadic)', () => {
       const args = installCommand.registeredArguments;
       expect(args.length).toBe(1);
-      expect(args[0].name()).toBe('skill');
+      expect(args[0].name()).toBe('skills');
       expect(args[0].required).toBe(false);
+      expect(args[0].variadic).toBe(true);
     });
 
     it('should have all required options', () => {

@@ -40,10 +40,10 @@ npx reskill@latest <command>  # 或直接使用 npx
 
 ## 命令
 
-| 命令                 | 说明                 |
-| -------------------- | -------------------- |
-| `init`               | 初始化 `skills.json` |
-| `install [skill]`    | 安装 skills          |
+| 命令                  | 说明                    |
+| --------------------- | ----------------------- |
+| `init`                | 初始化 `skills.json`    |
+| `install [skills...]` | 安装一个或多个 skills   |
 | `list`               | 列出已安装的 skills  |
 | `info <skill>`       | 查看 skill 详情      |
 | `update [skill]`     | 更新 skills          |
@@ -61,6 +61,9 @@ github:user/skill@v1.0.0                    # GitHub 简写
 gitlab:group/skill@latest                   # GitLab 简写
 gitlab.company.com:team/skill@v1.0.0        # 自建实例
 https://github.com/user/repo/tree/main/path # 网页 URL（支持子路径）
+
+# 一次安装多个 skills
+reskill install github:user/skill1 github:user/skill2@v1.0.0
 ```
 
 ## 版本规范

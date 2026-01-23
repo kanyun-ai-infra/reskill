@@ -213,6 +213,79 @@ describe('CLI Integration: install --mode symlink (default)', () => {
     });
   });
 
+  describe('multiple skills', () => {
+    it('should accept multiple skill arguments', () => {
+      const { stdout } = runCli('install --help', tempDir);
+      // Help should show variadic argument [skills...]
+      expect(stdout).toContain('skills');
+    });
+
+    it('should show batch installation summary for multiple skills', () => {
+      // Try to install multiple skills (will fail due to invalid refs, but summary should show)
+      const { stdout, stderr } = runCli(
+        'install github:test/skill-one github:test/skill-two -y -a cursor --mode copy',
+        tempDir,
+      );
+
+      const output = stdout + stderr;
+      // Should show batch summary with skill count
+      expect(output).toContain('2 skills');
+      expect(output).toContain('skill-one');
+      expect(output).toContain('skill-two');
+    });
+
+    it('should report all failures when multiple skills fail', () => {
+      // Try to install multiple invalid skills
+      const { stdout, stderr, exitCode } = runCli(
+        'install github:nonexistent/invalid-1 github:nonexistent/invalid-2 -y -a cursor --mode copy',
+        tempDir,
+      );
+
+      // Should exit with error code due to failures
+      expect(exitCode).toBe(1);
+
+      const output = stdout + stderr;
+      // Should mention both failed skills
+      expect(output).toContain('invalid-1');
+      expect(output).toContain('invalid-2');
+      expect(output).toContain('Failed');
+    });
+
+    it('should continue installing remaining skills when one fails (partial success)', () => {
+      // Install multiple skills where one is invalid
+      // The valid ones should still be attempted, and we should see both in output
+      const { stdout, stderr, exitCode } = runCli(
+        'install github:valid/skill-a github:nonexistent/bad-skill github:valid/skill-b -y -a cursor --mode copy',
+        tempDir,
+      );
+
+      // Should exit with error code due to partial failure
+      expect(exitCode).toBe(1);
+
+      const output = stdout + stderr;
+      // Should show all three skills were attempted
+      expect(output).toContain('skill-a');
+      expect(output).toContain('bad-skill');
+      expect(output).toContain('skill-b');
+      // Should show failure message
+      expect(output).toContain('Failed');
+    });
+
+    it('should handle single skill with same code path as before', () => {
+      // Single skill should still work and show single-skill summary
+      const { stdout, stderr } = runCli(
+        'install github:test/single-skill -y -a cursor --mode copy',
+        tempDir,
+      );
+
+      const output = stdout + stderr;
+      // Should show single skill summary (not batch)
+      expect(output).toContain('single-skill');
+      // Should NOT show "N skills:" batch format
+      expect(output).not.toMatch(/\d+ skills:/);
+    });
+  });
+
   describe('multiple agents', () => {
     it('should support -a flag for multiple agents', () => {
       const { stdout } = runCli('install --help', tempDir);

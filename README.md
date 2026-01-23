@@ -40,10 +40,10 @@ npx reskill@latest <command>  # Or use npx directly
 
 ## Commands
 
-| Command              | Description                               |
-| -------------------- | ----------------------------------------- |
-| `init`               | Initialize `skills.json`                  |
-| `install [skill]`    | Install skills                            |
+| Command               | Description                               |
+| --------------------- | ----------------------------------------- |
+| `init`                | Initialize `skills.json`                  |
+| `install [skills...]` | Install one or more skills                |
 | `list`               | List installed skills                     |
 | `info <skill>`       | Show skill details                        |
 | `update [skill]`     | Update skills                             |
@@ -74,6 +74,9 @@ npx reskill@latest install gitlab.company.com:team/skill@v1.0.0
 
 # Default registry (from skills.json)
 npx reskill@latest install user/skill@v1.0.0
+
+# Install multiple skills at once
+npx reskill@latest install github:user/skill1 github:user/skill2@v1.0.0
 ```
 
 ## Version Specification

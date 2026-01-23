@@ -66,21 +66,27 @@ Next steps:
 
 ## install
 
-Install a skill or reinstall all skills from `skills.json`.
+Install one or more skills, or reinstall all skills from `skills.json`.
 
 ### Synopsis
 
 ```
-reskill install [skill] [options]
+reskill install [skills...] [options]
 ```
 
 ### Arguments
 
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `skill` | No | Skill reference (e.g., `github:user/skill@v1.0.0`) |
+| `skills` | No | One or more skill references (e.g., `github:user/skill@v1.0.0`) |
 
-When `skill` is omitted, reinstalls all skills from `skills.json`.
+When no skills are provided, reinstalls all skills from `skills.json`.
+
+Supports installing multiple skills at once (similar to npm):
+
+```bash
+reskill install github:user/skill1 github:user/skill2@v1.0.0 gitlab:team/skill3
+```
 
 ### Options
 
@@ -113,11 +119,13 @@ When `skill` is omitted, reinstalls all skills from `skills.json`.
 | Scenario | Expected Behavior | Exit Code |
 |----------|-------------------|-----------|
 | Install single skill | Fetch, cache, install to agents, save to `skills.json` | `0` |
+| Install multiple skills | Fetch each skill, cache, install to agents, save all to `skills.json` | `0` |
 | Reinstall all (no arg) | Reinstall all skills from `skills.json` | `0` |
 | `skills.json` not found (reinstall) | Error: "Run 'reskill init' first" | `1` |
 | No skills in `skills.json` | Info message, done | `0` |
 | Invalid agent name | Error with valid agent list | `1` |
 | Reinstall all + `--global` | Error: Cannot install all globally | `1` |
+| Some skills fail | Install successful ones, report failures, exit with `1` if any failed | `1` |
 
 ### Skill Reference Formats
 

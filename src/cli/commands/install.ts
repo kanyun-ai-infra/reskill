@@ -22,7 +22,7 @@ interface InstallOptions {
 }
 
 interface InstallContext {
-  skill: string | undefined;
+  skills: string[];
   options: InstallOptions;
   configLoader: ConfigLoader;
   allAgentTypes: AgentType[];
@@ -31,6 +31,7 @@ interface InstallContext {
   hasStoredAgents: boolean;
   storedMode: InstallMode | undefined;
   isReinstallAll: boolean;
+  isBatchInstall: boolean;
   skipConfirm: boolean;
 }
 
@@ -78,7 +79,7 @@ function filterValidAgents(
 /**
  * Create install context from command arguments and options
  */
-function createInstallContext(skill: string | undefined, options: InstallOptions): InstallContext {
+function createInstallContext(skills: string[], options: InstallOptions): InstallContext {
   const configLoader = new ConfigLoader();
   const allAgentTypes = Object.keys(agents) as AgentType[];
   const hasSkillsJson = configLoader.exists();
@@ -89,7 +90,7 @@ function createInstallContext(skill: string | undefined, options: InstallOptions
   const storedMode = storedDefaults?.installMode;
 
   return {
-    skill,
+    skills,
     options,
     configLoader,
     allAgentTypes,
@@ -97,7 +98,8 @@ function createInstallContext(skill: string | undefined, options: InstallOptions
     storedAgents,
     hasStoredAgents: !!storedAgents && storedAgents.length > 0,
     storedMode,
-    isReinstallAll: !skill,
+    isReinstallAll: skills.length === 0,
+    isBatchInstall: skills.length > 1,
     skipConfirm: options.yes ?? false,
   };
 }
@@ -407,7 +409,8 @@ async function installSingleSkill(
   installMode: InstallMode,
   spinner: ReturnType<typeof p.spinner>,
 ): Promise<void> {
-  const { skill, options, configLoader, skipConfirm } = ctx;
+  const { skills, options, configLoader, skipConfirm } = ctx;
+  const skill = skills[0];
   const cwd = process.cwd();
 
   // Show installation summary
@@ -431,7 +434,7 @@ async function installSingleSkill(
   spinner.start(`Installing ${skill}...`);
 
   const skillManager = new SkillManager(undefined, { global: installGlobally });
-  const { skill: installed, results } = await skillManager.installToAgents(skill!, targetAgents, {
+  const { skill: installed, results } = await skillManager.installToAgents(skill, targetAgents, {
     force: options.force,
     save: options.save !== false && !installGlobally,
     mode: installMode,
@@ -449,6 +452,84 @@ async function installSingleSkill(
   if (!installGlobally && successful.length > 0 && configLoader.exists()) {
     configLoader.reload(); // Sync with SkillManager's changes
     configLoader.updateDefaults({ targetAgents, installMode });
+  }
+}
+
+/**
+ * Install multiple skills in batch
+ */
+async function installMultipleSkills(
+  ctx: InstallContext,
+  targetAgents: AgentType[],
+  installGlobally: boolean,
+  installMode: InstallMode,
+  spinner: ReturnType<typeof p.spinner>,
+): Promise<void> {
+  const { skills, options, configLoader, skipConfirm } = ctx;
+  const cwd = process.cwd();
+
+  // Show installation summary
+  const summaryLines = [
+    `${chalk.cyan(skills.length)} skills:`,
+    ...skills.map((s) => `  ${chalk.dim('•')} ${s}`),
+    '',
+    `  ${chalk.dim('→')} ${formatAgentNames(targetAgents)}`,
+    `  ${chalk.dim('Scope:')} ${installGlobally ? 'Global' : 'Project'}${chalk.dim(', Mode:')} ${installMode}`,
+  ];
+  p.note(summaryLines.join('\n'), 'Installation Summary');
+
+  // Confirm installation
+  if (!skipConfirm) {
+    const confirmed = await p.confirm({ message: 'Proceed with installation?' });
+    if (p.isCancel(confirmed) || !confirmed) {
+      p.cancel('Installation cancelled');
+      process.exit(0);
+    }
+  }
+
+  // Execute installation for each skill
+  const skillManager = new SkillManager(undefined, { global: installGlobally });
+  const successfulSkills: { name: string; version: string }[] = [];
+  const failedSkills: { ref: string; error: string }[] = [];
+
+  for (const skillRef of skills) {
+    spinner.start(`Installing ${skillRef}...`);
+
+    try {
+      const { skill: installed, results } = await skillManager.installToAgents(skillRef, targetAgents, {
+        force: options.force,
+        save: options.save !== false && !installGlobally,
+        mode: installMode,
+      });
+
+      const successful = Array.from(results.values()).filter((r) => r.success);
+      if (successful.length > 0) {
+        successfulSkills.push(installed);
+        spinner.stop(`${chalk.green('✓')} ${installed.name}@${installed.version}`);
+      } else {
+        const firstError = Array.from(results.values()).find((r) => !r.success)?.error;
+        failedSkills.push({ ref: skillRef, error: firstError || 'Unknown error' });
+        spinner.stop(`${chalk.red('✗')} ${skillRef}`);
+      }
+    } catch (error) {
+      failedSkills.push({ ref: skillRef, error: (error as Error).message });
+      spinner.stop(`${chalk.red('✗')} ${skillRef}`);
+    }
+  }
+
+  // Display batch results
+  console.log();
+  displayBatchInstallResults(successfulSkills, failedSkills, targetAgents.length, cwd);
+
+  // Save installation defaults (only for project installs with success)
+  if (!installGlobally && successfulSkills.length > 0 && configLoader.exists()) {
+    configLoader.reload(); // Sync with SkillManager's changes
+    configLoader.updateDefaults({ targetAgents, installMode });
+  }
+
+  // Exit with error if any skills failed
+  if (failedSkills.length > 0) {
+    process.exit(1);
   }
 }
 
@@ -491,6 +572,33 @@ function displayInstallResults(
     p.log.warn(
       `Installed ${chalk.green(totalInstalled)} successfully, ${chalk.red(totalFailed)} failed`,
     );
+  }
+}
+
+/**
+ * Display results for batch skill installation
+ */
+function displayBatchInstallResults(
+  successfulSkills: { name: string; version: string }[],
+  failedSkills: { ref: string; error: string }[],
+  agentCount: number,
+  _cwd: string,
+): void {
+  if (successfulSkills.length > 0) {
+    const resultLines = successfulSkills.map(
+      (s) => `  ${chalk.green('✓')} ${s.name}@${s.version}`,
+    );
+    p.note(
+      resultLines.join('\n'),
+      chalk.green(`Installed ${successfulSkills.length} skill(s) to ${agentCount} agent(s)`),
+    );
+  }
+
+  if (failedSkills.length > 0) {
+    p.log.error(chalk.red(`Failed to install ${failedSkills.length} skill(s):`));
+    for (const { ref, error } of failedSkills) {
+      p.log.message(`  ${chalk.red('✗')} ${ref}: ${chalk.dim(error)}`);
+    }
   }
 }
 
@@ -577,10 +685,10 @@ function displaySingleSkillResults(
  */
 export const installCommand = new Command('install')
   .alias('i')
-  .description('Install a skill or all skills from skills.json')
+  .description('Install one or more skills, or all skills from skills.json')
   .argument(
-    '[skill]',
-    'Skill reference (e.g., github:user/skill@v1.0.0 or git@github.com:user/repo.git)',
+    '[skills...]',
+    'Skill references (e.g., github:user/skill@v1.0.0 or git@github.com:user/repo.git)',
   )
   .option('-f, --force', 'Force reinstall even if already installed')
   .option('-g, --global', 'Install globally to user home directory')
@@ -589,7 +697,7 @@ export const installCommand = new Command('install')
   .option('--mode <mode>', 'Installation mode: symlink or copy')
   .option('-y, --yes', 'Skip confirmation prompts')
   .option('--all', 'Install to all agents (implies -y -g)')
-  .action(async (skill: string | undefined, options: InstallOptions) => {
+  .action(async (skills: string[], options: InstallOptions) => {
     // Handle --all flag implications
     if (options.all) {
       options.yes = true;
@@ -597,7 +705,7 @@ export const installCommand = new Command('install')
     }
 
     // Create execution context
-    const ctx = createInstallContext(skill, options);
+    const ctx = createInstallContext(skills, options);
 
     // Print banner
     console.log();
@@ -624,6 +732,8 @@ export const installCommand = new Command('install')
       // Step 4: Execute installation
       if (ctx.isReinstallAll) {
         await installAllSkills(ctx, targetAgents, installMode, spinner);
+      } else if (ctx.isBatchInstall) {
+        await installMultipleSkills(ctx, targetAgents, installGlobally, installMode, spinner);
       } else {
         await installSingleSkill(ctx, targetAgents, installGlobally, installMode, spinner);
       }
