@@ -1,7 +1,8 @@
 import { execSync } from 'node:child_process';
 import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import { isValidAgentType } from '../../core/agent-registry.js';
@@ -40,6 +41,10 @@ export function getStatusIcon(status: CheckStatus): string {
 
 /**
  * Execute command and return output
+ *
+ * @warning This function executes arbitrary shell commands. It is exported for
+ * testing purposes only. Do not use with untrusted input. Internal usage is
+ * limited to hardcoded commands (e.g., 'git --version').
  */
 export function execCommand(command: string): string | null {
   try {
@@ -335,6 +340,17 @@ const DANGEROUS_INSTALL_DIRS = [
 const DANGEROUS_SKILL_NAMES = ['.git', '..', '.', 'node_modules', '__proto__', 'constructor'];
 
 /**
+ * Network connectivity check timeout in milliseconds
+ */
+const NETWORK_CHECK_TIMEOUT_MS = 5000;
+
+/**
+ * Padding width for check result names in output.
+ * Accounts for nested items with "  └─ " prefix (5 chars).
+ */
+const CHECK_NAME_PAD_WIDTH = 26;
+
+/**
  * Check for registry name conflicts
  */
 export function checkRegistryConflicts(cwd: string): CheckResult[] {
@@ -598,19 +614,27 @@ export function checkSkillsLock(cwd: string): CheckResult {
   const extraInLock = [...lockedNames].filter((n) => !configNames.has(n));
 
   if (missingInLock.length > 0) {
+    const displayMissing =
+      missingInLock.length > 3
+        ? `${missingInLock.slice(0, 3).join(', ')} +${missingInLock.length - 3} more`
+        : missingInLock.join(', ');
     return {
       name: 'skills.lock',
       status: 'warn',
-      message: `out of sync (missing: ${missingInLock.join(', ')})`,
+      message: `out of sync (missing: ${displayMissing})`,
       hint: 'Run: reskill install',
     };
   }
 
   if (extraInLock.length > 0) {
+    const displayExtra =
+      extraInLock.length > 3
+        ? `${extraInLock.slice(0, 3).join(', ')} +${extraInLock.length - 3} more`
+        : extraInLock.join(', ');
     return {
       name: 'skills.lock',
       status: 'warn',
-      message: `out of sync (extra: ${extraInLock.join(', ')})`,
+      message: `out of sync (extra: ${displayExtra})`,
       hint: 'Run: reskill install',
     };
   }
@@ -776,7 +800,7 @@ export async function checkNetwork(host: string): Promise<CheckResult> {
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
+    const timeout = setTimeout(() => controller.abort(), NETWORK_CHECK_TIMEOUT_MS);
 
     const response = await fetch(host, {
       method: 'HEAD',
@@ -814,7 +838,7 @@ export async function checkNetwork(host: string): Promise<CheckResult> {
  */
 export function printResult(result: CheckResult): void {
   const icon = getStatusIcon(result.status);
-  const name = result.name.padEnd(22);
+  const name = result.name.padEnd(CHECK_NAME_PAD_WIDTH);
   const message = result.status === 'ok' ? result.message : chalk.dim(result.message);
 
   logger.log(`${icon} ${name} ${message}`);
@@ -888,10 +912,6 @@ export const doctorCommand = new Command('doctor')
   .option('--skip-network', 'Skip network connectivity checks')
   .action(async (options) => {
     // Get package info
-    const { readFileSync } = await import('node:fs');
-    const { dirname, join } = await import('node:path');
-    const { fileURLToPath } = await import('node:url');
-
     const __dirname = dirname(fileURLToPath(import.meta.url));
     // In bundled output, __dirname is dist/cli/, so ../../package.json
     const packageJson = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8'));
