@@ -151,7 +151,9 @@ describe('CLI Integration: list', () => {
 
     const { stdout, exitCode } = runCli('list --json', tempDir);
     expect(exitCode).toBe(0);
-    const parsed = JSON.parse(stdout);
+    // Extract JSON from output (may have update notifier appended)
+    const jsonStr = stdout.substring(0, stdout.lastIndexOf(']') + 1);
+    const parsed = JSON.parse(jsonStr);
     expect(Array.isArray(parsed)).toBe(true);
     expect(parsed.length).toBeGreaterThan(0);
   });

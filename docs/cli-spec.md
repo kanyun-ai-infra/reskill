@@ -14,6 +14,7 @@
 | [info](#info) | - | Show skill information |
 | [update](#update) | `up` | Update skills to latest version |
 | [outdated](#outdated) | - | Check for outdated skills |
+| [doctor](#doctor) | - | Diagnose environment and check for issues |
 | [completion](#completion) | - | Setup shell completion |
 
 ---
@@ -413,6 +414,156 @@ Or 'reskill update <skill>' to update a specific skill
 
 ---
 
+## doctor
+
+Diagnose reskill environment and check for potential issues.
+
+### Synopsis
+
+```
+reskill doctor [options]
+```
+
+### Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--json` | `false` | Output results as JSON |
+| `--skip-network` | `false` | Skip network connectivity checks |
+
+### Checks Performed
+
+The doctor command performs the following checks:
+
+**Environment Checks:**
+| Check | Description |
+|-------|-------------|
+| reskill version | Check if reskill is up to date |
+| Node.js version | Verify Node.js >= 18.0.0 |
+| Git | Verify Git is installed |
+| Git authentication | Check for SSH keys or credential helper |
+
+**Directory Checks:**
+| Check | Description |
+|-------|-------------|
+| Cache directory | Show cache location and size |
+| skills.json | Verify configuration file exists and is valid |
+| skills.lock | Verify lock file is in sync with skills.json |
+| Installed skills | Check installed skills for issues |
+
+**Configuration Checks:**
+| Check | Description |
+|-------|-------------|
+| Registry conflict | Warn if `github` or `gitlab` registry names are overridden |
+| Dangerous installDir | Error if installDir uses reserved paths (src, node_modules, etc.) |
+| Invalid agent | Warn for unknown agent types in targetAgents |
+| Invalid skill ref | Error for malformed skill references |
+| Version mismatch | Warn for monorepo skills with different versions |
+
+**Network Checks:**
+| Check | Description |
+|-------|-------------|
+| Network (github.com) | Test connectivity to GitHub |
+| Network (gitlab.com) | Test connectivity to GitLab |
+
+### Behavior
+
+| Scenario | Expected Behavior | Exit Code |
+|----------|-------------------|-----------|
+| All checks pass | Success message | `0` |
+| Only warnings | Warning summary, no errors | `0` |
+| Any error found | Error summary | `1` |
+| `--json` flag | Output JSON array of results | `0` or `1` |
+
+### Output
+
+**Success (no issues):**
+```
+🩺 Checking reskill environment...
+
+✓ reskill version          0.17.1 (latest)
+✓ Node.js version          v22.0.0 (>=18.0.0 required)
+✓ Git                      2.43.0
+✓ Git authentication       SSH key found
+✓ Cache directory          ~/.reskill-cache (12.5 MB, 5 skills cached)
+✓ skills.json              found (3 skills declared)
+✓ skills.lock              in sync (3 skills locked)
+✓ Installed skills         3 skills installed
+✓ Network (github.com)     reachable
+✓ Network (gitlab.com)     reachable
+
+All checks passed! reskill is ready to use.
+```
+
+**With warnings:**
+```
+🩺 Checking reskill environment...
+
+✓ reskill version          0.17.1 (latest)
+✓ Node.js version          v22.0.0 (>=18.0.0 required)
+✓ Git                      2.43.0
+⚠ Git authentication       no SSH key or credential helper found
+  → For private repos, add SSH key: ssh-keygen -t ed25519
+✓ Cache directory          ~/.reskill-cache (12.5 MB, 5 skills cached)
+⚠ skills.json              not found
+  → Run: reskill init
+✓ skills.lock              n/a (no skills.json)
+✓ Installed skills         none
+✓ Network (github.com)     reachable
+✓ Network (gitlab.com)     reachable
+
+Found 2 warnings, but reskill should work
+```
+
+**With errors:**
+```
+🩺 Checking reskill environment...
+
+✓ reskill version          0.17.1 (latest)
+✗ Node.js version          v16.0.0 (requires >=18.0.0)
+  → Please upgrade Node.js to version 18 or higher
+✗ Git                      not found
+  → Please install Git: https://git-scm.com/downloads
+...
+
+Found 2 errors and 1 warning
+```
+
+**JSON format (`--json`):**
+```json
+[
+  {
+    "name": "reskill version",
+    "status": "ok",
+    "message": "0.17.1 (latest)"
+  },
+  {
+    "name": "Node.js version",
+    "status": "ok",
+    "message": "v22.0.0 (>=18.0.0 required)"
+  },
+  {
+    "name": "Git authentication",
+    "status": "warn",
+    "message": "no SSH key or credential helper found",
+    "hint": "For private repos, add SSH key: ssh-keygen -t ed25519"
+  }
+]
+```
+
+### Check Result Schema
+
+Each check result contains:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Check name |
+| `status` | `"ok"` \| `"warn"` \| `"error"` | Check status |
+| `message` | string | Status message |
+| `hint` | string? | Optional fix suggestion |
+
+---
+
 ## completion
 
 Setup shell completion for reskill using tabtab.
@@ -548,9 +699,14 @@ Track specification changes here:
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-01-23 | 0.1.3 | Added doctor command specification |
 | 2026-01-23 | 0.1.2 | Added version formats and registry support documentation |
 | 2026-01-23 | 0.1.1 | Fixed spec to match actual implementation |
 | 2026-01-23 | 0.1.0 | Initial specification |
+
+### 0.1.3 Additions
+
+- Added `doctor` command specification with all checks, options, and output formats
 
 ### 0.1.2 Additions
 
