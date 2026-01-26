@@ -52,7 +52,17 @@ npx reskill@latest <command>  # Or use npx directly
 | `doctor`             | Diagnose environment and check for issues |
 | `completion install` | Install shell tab completion              |
 
-Run `reskill <command> --help` for detailed options.
+### Common Options
+
+| Option | Commands | Description |
+| ------ | -------- | ----------- |
+| `--no-save` | `install` | Install without saving to `skills.json` (for personal skills) |
+| `-g, --global` | `install`, `uninstall`, `list` | Install/manage skills globally (user directory) |
+| `-a, --agent <agents...>` | `install` | Specify target agents (e.g., `cursor`, `claude-code`) |
+| `--mode <mode>` | `install` | Installation mode: `symlink` (default) or `copy` |
+
+
+Run `reskill <command> --help` for complete options and detailed usage.
 
 ## Source Formats
 
@@ -78,6 +88,25 @@ npx reskill@latest install user/skill@v1.0.0
 # Install multiple skills at once
 npx reskill@latest install github:user/skill1 github:user/skill2@v1.0.0
 ```
+
+### Monorepo Support
+
+For repositories containing multiple skills (monorepo), specify the path to the skill directory:
+
+```bash
+# Shorthand format with subpath
+npx reskill@latest install github:org/monorepo/skills/planning@v1.0.0
+npx reskill@latest install gitlab:company/skills/frontend/components@latest
+
+# URL format with subpath
+npx reskill@latest install https://github.com/org/monorepo.git/skills/planning@v1.0.0
+npx reskill@latest install git@gitlab.company.com:team/skills.git/backend/apis@v2.0.0
+
+# GitHub web URL automatically extracts subpath
+npx reskill@latest install https://github.com/org/monorepo/tree/main/skills/planning
+```
+
+**Requirements**: The specified directory must contain a valid `SKILL.md` file following the [Agent Skills Specification](https://agentskills.io).
 
 ## Version Specification
 
