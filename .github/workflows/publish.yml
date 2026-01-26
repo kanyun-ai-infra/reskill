@@ -11,6 +11,8 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+    # Only run on the main repository, not on forks
+    if: github.repository == 'kanyun-inc/reskill'
     permissions:
       contents: write
       pull-requests: write
