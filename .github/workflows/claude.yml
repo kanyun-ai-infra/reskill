@@ -16,11 +16,14 @@ jobs:
     # 1. Comment contains @claude mention
     # 2. Issue/PR is assigned to claude bot
     # 3. PR review requests changes and mentions @claude
+    # 4. Repository is the main upstream repository (not a fork)
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && github.event.action == 'assigned' && github.event.assignee.login == 'claude')
+      github.repository == 'kanyun-inc/reskill' && (
+        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+        (github.event_name == 'issues' && github.event.action == 'assigned' && github.event.assignee.login == 'claude')
+      )
     runs-on: ubuntu-latest
     permissions:
       contents: write
