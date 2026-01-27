@@ -1,5 +1,167 @@
 # reskill
 
+## 1.2.0
+
+### Minor Changes
+
+- eca2582: Add HTTP/OSS URL support for skill installation
+
+  **Changes:**
+
+  - Added `HttpResolver` for parsing HTTP/HTTPS/OSS/S3 URLs
+  - Added `downloadFile`, `extractArchive`, `downloadAndExtract` utilities
+  - Updated `CacheManager` with `cacheFromHttp()` method
+  - Updated `SkillManager` to auto-detect and handle HTTP sources
+  - Support for archive formats: tar.gz, tgz, zip, tar
+
+  **Supported URL formats:**
+
+  - `https://example.com/skill-v1.0.0.tar.gz`
+  - `https://bucket.oss-cn-hangzhou.aliyuncs.com/skill.tar.gz`
+  - `oss://bucket/path/skill.tar.gz` (Aliyun OSS shorthand)
+  - `s3://bucket/path/skill.tar.gz` (AWS S3 shorthand)
+
+  ***
+
+  新增 HTTP/OSS URL 安装支持
+
+  **变更内容:**
+
+  - 新增 `HttpResolver` 用于解析 HTTP/HTTPS/OSS/S3 URL
+  - 新增 `downloadFile`、`extractArchive`、`downloadAndExtract` 工具函数
+  - 更新 `CacheManager`，添加 `cacheFromHttp()` 方法
+  - 更新 `SkillManager`，自动检测并处理 HTTP 源
+  - 支持归档格式：tar.gz、tgz、zip、tar
+
+  **支持的 URL 格式:**
+
+  - `https://example.com/skill-v1.0.0.tar.gz`
+  - `https://bucket.oss-cn-hangzhou.aliyuncs.com/skill.tar.gz`
+  - `oss://bucket/path/skill.tar.gz`（阿里云 OSS 简写）
+  - `s3://bucket/path/skill.tar.gz`（AWS S3 简写）
+
+- a41f905: Auto-generate registries in skills.json
+
+  **Changes:**
+
+  - Add default `github` registry to `skills.json` on `reskill init`
+  - Auto-add registry when installing skills with registry format (e.g., `github:user/repo`, `gitlab:user/repo`)
+  - New `addRegistry()` method in ConfigLoader for programmatic registry management
+  - Registries are not overwritten if already configured
+
+  **Example:**
+
+  After `reskill init`:
+
+  ```json
+  {
+    "skills": {},
+    "registries": {
+      "github": "https://github.com"
+    },
+    "defaults": {
+      "installDir": ".skills"
+    }
+  }
+  ```
+
+  After installing a GitLab skill:
+
+  ```json
+  {
+    "skills": {
+      "my-skill": "gitlab:user/repo@v1.0.0"
+    },
+    "registries": {
+      "github": "https://github.com",
+      "gitlab": "https://gitlab.com"
+    },
+    "defaults": {
+      "installDir": ".skills"
+    }
+  }
+  ```
+
+  ***
+
+  skills.json 自动生成 registries 配置
+
+  **变更：**
+
+  - `reskill init` 时默认添加 `github` registry
+  - 安装 registry 格式的 skill 时自动添加对应的 registry（如 `github:user/repo`、`gitlab:user/repo`）
+  - ConfigLoader 新增 `addRegistry()` 方法用于程序化管理 registry
+  - 已存在的 registry 不会被覆盖
+
+  **示例：**
+
+  `reskill init` 后：
+
+  ```json
+  {
+    "skills": {},
+    "registries": {
+      "github": "https://github.com"
+    },
+    "defaults": {
+      "installDir": ".skills"
+    }
+  }
+  ```
+
+  安装 GitLab skill 后：
+
+  ```json
+  {
+    "skills": {
+      "my-skill": "gitlab:user/repo@v1.0.0"
+    },
+    "registries": {
+      "github": "https://github.com",
+      "gitlab": "https://gitlab.com"
+    },
+    "defaults": {
+      "installDir": ".skills"
+    }
+  }
+  ```
+
+### Patch Changes
+
+- 3461323: Fix Git SSH URL parsing and add WellKnownRegistry type
+
+  **Bug Fixes:**
+
+  - Fix `normalizeGitSshUrl` regex capture group issue where `.git` suffix might not be correctly handled
+  - Simplify regex pattern and explicitly remove `.git` suffix for more reliable parsing
+
+  **Improvements:**
+
+  - Add `WellKnownRegistry` type export for consumers who need to type registry names
+  - Add JSDoc documentation for `addRegistry()` method explaining the silent return behavior
+
+  **Tests:**
+
+  - Add test cases for SSH URL parsing edge cases (with/without `.git`, with/without version)
+
+  ***
+
+  修复 Git SSH URL 解析并添加 WellKnownRegistry 类型
+
+  **Bug 修复：**
+
+  - 修复 `normalizeGitSshUrl` 正则表达式捕获组问题，`.git` 后缀可能无法正确处理
+  - 简化正则表达式模式并显式移除 `.git` 后缀，使解析更可靠
+
+  **改进：**
+
+  - 添加 `WellKnownRegistry` 类型导出，供需要类型化 registry 名称的消费者使用
+  - 为 `addRegistry()` 方法添加 JSDoc 文档，说明静默返回的行为
+
+  **测试：**
+
+  - 添加 SSH URL 解析边缘情况的测试用例（有/无 `.git`、有/无版本号）
+
 ## 1.1.1
 
 ### Patch Changes
