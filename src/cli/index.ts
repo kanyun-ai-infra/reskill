@@ -13,10 +13,14 @@ import {
   initCommand,
   installCommand,
   listCommand,
+  loginCommand,
+  logoutCommand,
   maybeHandleCompletion,
   outdatedCommand,
+  publishCommand,
   uninstallCommand,
   updateCommand,
+  whoamiCommand,
 } from './commands/index.js';
 
 // Handle tab completion early (before commander parsing)
@@ -43,6 +47,10 @@ program.addCommand(infoCommand);
 program.addCommand(updateCommand);
 program.addCommand(outdatedCommand);
 program.addCommand(uninstallCommand);
+program.addCommand(publishCommand);
+program.addCommand(loginCommand);
+program.addCommand(logoutCommand);
+program.addCommand(whoamiCommand);
 program.addCommand(completionCommand);
 program.addCommand(doctorCommand);
 
