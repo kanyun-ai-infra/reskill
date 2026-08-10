@@ -11,11 +11,11 @@ reskill is a Git-based package manager for AI agent skills, similar to npm/Go mo
 ## Tech Stack
 
 - **Language:** TypeScript (ES Modules)
-- **Runtime:** Node.js >= 18.0.0
+- **Runtime:** Node.js >= 18.0.0 (published package); Node.js >= 22.13 to develop, since pnpm 11 requires it
 - **Build Tool:** Rslib (Rspack-based library bundler)
+- **Package Manager:** pnpm 11 (pinned via `packageManager`; settings live in `pnpm-workspace.yaml`, not the `pnpm` field)
 - **Testing:** Vitest with @vitest/coverage-v8
 - **CLI Framework:** Commander.js
-- **Package Manager:** pnpm
 
 ## Development Commands
 
@@ -257,6 +257,20 @@ When creating or modifying CLI commands:
 ```bash
 pnpm test:run && pnpm test:integration && pnpm typecheck && pnpm lint
 ```
+
+## Releasing
+
+`.github/workflows/publish.yml` publishes to npm through **trusted publishing (OIDC)**, not a
+static token. `pnpm publish` exchanges the workflow's OIDC id-token for a short-lived registry
+token by itself, so:
+
+- Do not add `registry-url` to `setup-node`. It writes an `.npmrc` with
+  `_authToken=${NODE_AUTH_TOKEN}`, and a static token takes precedence over the OIDC path.
+- Keep `permissions.id-token: write` on any job that publishes.
+- Provenance is set via `pnpm_config_provenance`. pnpm ignores the `npm_config_*` prefix.
+- The trust relationship is configured on npmjs.com (package → Settings → Trusted Publisher) and
+  is pinned to this repository plus the `publish.yml` workflow filename. Renaming the workflow
+  file breaks publishing until the npm setting is updated to match.
 
 ## Git Commits
 

@@ -51,7 +51,9 @@ jobs:
           commit: 'chore: version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_CONFIG_PROVENANCE: true
+          # pnpm 11 reads its own settings from pnpm_config_* only; the npm_config_*
+          # form is ignored, which would leave provenance up to auto-detection.
+          pnpm_config_provenance: true
 
   beta-release:
     name: Beta Release
@@ -128,7 +130,8 @@ jobs:
         if: steps.check-pre.outputs.is_pre == 'true' && steps.check-version.outputs.has_changes == 'true'
         run: pnpm changeset publish
         env:
-          NPM_CONFIG_PROVENANCE: true
+          # See the note in the release job on the pnpm_config_ prefix.
+          pnpm_config_provenance: true
 
       - name: Commit version bump back to branch
         if: steps.check-pre.outputs.is_pre == 'true' && steps.check-version.outputs.has_changes == 'true'
