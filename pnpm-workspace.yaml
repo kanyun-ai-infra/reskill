@@ -1,0 +1,5 @@
+allowBuilds:
+  # Only prints a sponsorship banner; nothing to build.
+  core-js: false
+  # Links the platform-specific binary used by rslib/vitest.
+  esbuild: true

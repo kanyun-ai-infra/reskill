@@ -3,7 +3,7 @@
   "version": "1.25.0",
   "description": "AI Skills Package Manager - Git-based skills management for AI agents",
   "type": "module",
-  "packageManager": "pnpm@9.15.0",
+  "packageManager": "pnpm@11.21.0",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",

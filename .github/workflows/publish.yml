@@ -26,11 +26,13 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
 
+      # No registry-url: it would make setup-node write an .npmrc with
+      # `_authToken=${NODE_AUTH_TOKEN}`, and a static token takes us off the
+      # trusted publishing path. Auth comes from OIDC (see permissions above).
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22.x'
-          registry-url: 'https://registry.npmjs.org'
           cache: 'pnpm'
 
       - name: Install dependencies
@@ -49,7 +51,6 @@ jobs:
           commit: 'chore: version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
 
   beta-release:
@@ -68,11 +69,11 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
 
+      # See the note in the release job: no registry-url, auth comes from OIDC.
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22.x'
-          registry-url: 'https://registry.npmjs.org'
           cache: 'pnpm'
 
       - name: Install dependencies
@@ -127,7 +128,6 @@ jobs:
         if: steps.check-pre.outputs.is_pre == 'true' && steps.check-version.outputs.has_changes == 'true'
         run: pnpm changeset publish
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
 
       - name: Commit version bump back to branch
