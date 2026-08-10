@@ -23,12 +23,16 @@ jobs:
         with:
           fetch-depth: 0
 
+      # v6 or newer is required: earlier versions bootstrap with a pnpm 8 that
+      # cannot install the pnpm 11 pinned in packageManager (it unpacks the
+      # tarball but leaves node_modules/.bin/pnpm dangling).
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       # No registry-url: it would make setup-node write an .npmrc with
       # `_authToken=${NODE_AUTH_TOKEN}`, and a static token takes us off the
       # trusted publishing path. Auth comes from OIDC (see permissions above).
+      # '22.x' also keeps us above the Node >= 22.13 that pnpm 11 requires.
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -69,7 +73,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       # See the note in the release job: no registry-url, auth comes from OIDC.
       - name: Setup Node.js
