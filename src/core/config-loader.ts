@@ -1,6 +1,7 @@
 import * as path from 'node:path';
 import type { SkillsDefaults, SkillsJson } from '../types/index.js';
 import { exists, getSkillsJsonPath, readJson, writeJson } from '../utils/fs.js';
+import type { CustomAgentMap } from './agent-registry.js';
 
 // ============================================================================
 // Constants
@@ -107,7 +108,7 @@ export class ConfigLoader {
   /**
    * Enable/disable no-manifest mode.
    * When enabled, all write operations (save, create, addSkill, updateDefaults,
-   * addRegistry) become no-ops. Read operations are unaffected.
+   * updateCustomAgents, addRegistry) become no-ops. Read operations are unaffected.
    */
   setNoManifest(enabled: boolean): void {
     this._noManifest = enabled;
@@ -265,6 +266,43 @@ export class ConfigLoader {
     if (this.config) {
       this.config.defaults = {
         ...this.config.defaults,
+        ...updates,
+      };
+      this.save();
+    }
+  }
+
+  // ==========================================================================
+  // Custom Agents
+  // ==========================================================================
+
+  /**
+   * Get custom agent targets declared in skills.json.
+   *
+   * Returns an empty map when none are configured.
+   */
+  getCustomAgents(): CustomAgentMap {
+    const config = this.getConfigOrDefault();
+    return { ...config.customAgents };
+  }
+
+  /**
+   * Merge custom agent targets into skills.json and save.
+   *
+   * Existing aliases are preserved unless the update overrides them. Callers
+   * are responsible for ensuring aliases do not collide with built-in agent
+   * names (the CLI parser guarantees this for `-a alias:path`).
+   *
+   * @param updates - Map of alias -> configuration to merge in
+   */
+  updateCustomAgents(updates: CustomAgentMap): void {
+    if (this._noManifest) return;
+    if (Object.keys(updates).length === 0) return;
+    this.ensureConfigLoaded();
+
+    if (this.config) {
+      this.config.customAgents = {
+        ...this.config.customAgents,
         ...updates,
       };
       this.save();

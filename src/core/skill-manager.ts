@@ -32,7 +32,10 @@ import {
 import {
   type AgentType,
   agents,
+  buildCustomAgentConfig,
+  type CustomAgentMap,
   detectInstalledAgents,
+  getAllAgentTypes,
   isValidAgentType,
 } from './agent-registry.js';
 import { CacheManager } from './cache-manager.js';
@@ -117,10 +120,7 @@ export interface SourceMeta {
   installedAt: string;
 }
 
-export function writeSourceMeta(
-  skillDir: string,
-  meta: Omit<SourceMeta, 'installedAt'>,
-): void {
+export function writeSourceMeta(skillDir: string, meta: Omit<SourceMeta, 'installedAt'>): void {
   const data: SourceMeta = {
     ...meta,
     installedAt: new Date().toISOString(),
@@ -146,6 +146,12 @@ export interface SkillManagerOptions {
   global?: boolean;
   /** Skip all skills.json and skills.lock writes (platform integration mode) */
   noManifest?: boolean;
+  /**
+   * Ephemeral custom agent targets not persisted in skills.json.
+   * Merged over (and taking precedence on conflict with) skills.json's
+   * customAgents. Used for CLI `-a alias:path` one-off targets.
+   */
+  customAgents?: CustomAgentMap;
 }
 
 /**
@@ -167,10 +173,12 @@ export class SkillManager {
   private config: ConfigLoader;
   private lockManager: LockManager;
   private isGlobal: boolean;
+  private ephemeralCustomAgents: CustomAgentMap;
 
   constructor(projectRoot?: string, options?: SkillManagerOptions) {
     this.projectRoot = projectRoot || process.cwd();
     this.isGlobal = options?.global || false;
+    this.ephemeralCustomAgents = options?.customAgents ?? {};
     this.config = new ConfigLoader(this.projectRoot);
     this.lockManager = new LockManager(this.projectRoot);
     this.cache = new CacheManager();
@@ -203,6 +211,14 @@ export class SkillManager {
   }
 
   /**
+   * Resolve the effective custom agents: skills.json declarations merged with
+   * ephemeral CLI-provided targets (the latter win on alias conflict).
+   */
+  private getCustomAgents(): CustomAgentMap {
+    return { ...this.config.getCustomAgents(), ...this.ephemeralCustomAgents };
+  }
+
+  /**
    * Determine if the installation is effectively global.
    *
    * Claude Cowork 3P always installs to a global app-managed directory regardless
@@ -211,9 +227,7 @@ export class SkillManager {
    */
   private isEffectivelyGlobal(targetAgents: AgentType[]): boolean {
     if (this.isGlobal) return true;
-    return (
-      targetAgents.length > 0 && targetAgents.every((a) => a === CLAUDE_COWORK_3P_AGENT)
-    );
+    return targetAgents.length > 0 && targetAgents.every((a) => a === CLAUDE_COWORK_3P_AGENT);
   }
 
   /**
@@ -732,9 +746,7 @@ export class SkillManager {
     const targetAgents = await detectInstalledAgents();
     const updated: InstalledSkill[] = [];
 
-    const skillsToUpdate = name
-      ? installed.filter((s) => s.name === name)
-      : installed;
+    const skillsToUpdate = name ? installed.filter((s) => s.name === name) : installed;
 
     if (name && skillsToUpdate.length === 0) {
       logger.error(`Skill ${name} not found in global skills`);
@@ -750,7 +762,9 @@ export class SkillManager {
       // Read source metadata
       const sourceMeta = readSourceMeta(skill.path);
       if (!sourceMeta?.source) {
-        logger.warn(`${skill.name}: no source metadata, skipping (run 'reskill outdated -g' first to detect sources)`);
+        logger.warn(
+          `${skill.name}: no source metadata, skipping (run 'reskill outdated -g' first to detect sources)`,
+        );
         continue;
       }
 
@@ -970,6 +984,7 @@ export class SkillManager {
     const installer = new Installer({
       cwd: this.projectRoot,
       global: this.isGlobal,
+      customAgents: this.getCustomAgents(),
     });
 
     const skillNames = installer.listInstalledSkills(agent);
@@ -999,8 +1014,17 @@ export class SkillManager {
    */
   private detectSkillAgents(skillName: string): AgentType[] {
     const canonicalDir = this.getCanonicalSkillsDir();
+    const custom = this.getCustomAgents();
     const installed: AgentType[] = [];
-    for (const [type, config] of Object.entries(agents)) {
+
+    const builtinConfigs = Object.entries(agents) as Array<
+      [AgentType, (typeof agents)[keyof typeof agents]]
+    >;
+    const customConfigs = Object.entries(custom).map(
+      ([type, cfg]) => [type, buildCustomAgentConfig(type, cfg)] as const,
+    );
+
+    for (const [type, config] of [...builtinConfigs, ...customConfigs]) {
       if (type === CLAUDE_COWORK_3P_AGENT) {
         try {
           if (exists(getClaude3pSkillPath(skillName))) {
@@ -1015,6 +1039,11 @@ export class SkillManager {
       const agentBase = this.isGlobal
         ? config.globalSkillsDir
         : path.join(this.projectRoot, config.skillsDir);
+
+      // Custom agents without a globalPath have no global location to inspect
+      if (!agentBase) {
+        continue;
+      }
 
       // Skip agents whose skillsDir is the canonical directory itself
       if (path.resolve(agentBase) === path.resolve(canonicalDir)) {
@@ -1254,7 +1283,12 @@ export class SkillManager {
       }
 
       // Unscoped global skills — probe known registries with @scope/name
-      const probed = await this.probeRegistriesForSkill(skill.name, currentVersion, scopeUrls, skill.path);
+      const probed = await this.probeRegistriesForSkill(
+        skill.name,
+        currentVersion,
+        scopeUrls,
+        skill.path,
+      );
       results.push(probed);
     }
 
@@ -1337,7 +1371,12 @@ export class SkillManager {
       }
     }
 
-    return { name, current: currentVersion, latest: 'n/a (unknown source)', updateAvailable: false };
+    return {
+      name,
+      current: currentVersion,
+      latest: 'n/a (unknown source)',
+      updateAvailable: false,
+    };
   }
 
   /**
@@ -1539,6 +1578,7 @@ export class SkillManager {
       cwd: this.projectRoot,
       global: this.isGlobal,
       installDir: customInstallDir,
+      customAgents: this.getCustomAgents(),
     });
 
     const installed: Array<{
@@ -1668,6 +1708,7 @@ export class SkillManager {
       cwd: this.projectRoot,
       global: this.isGlobal,
       installDir: defaults.installDir,
+      customAgents: this.getCustomAgents(),
     });
 
     // Install to all target agents
@@ -1777,6 +1818,7 @@ export class SkillManager {
       cwd: this.projectRoot,
       global: this.isGlobal,
       installDir: defaults.installDir,
+      customAgents: this.getCustomAgents(),
     });
 
     // Install to all target agents
@@ -1921,6 +1963,7 @@ export class SkillManager {
         cwd: this.projectRoot,
         global: this.isGlobal,
         installDir: defaults.installDir,
+        customAgents: this.getCustomAgents(),
       });
 
       const missingAgents = targetAgents.filter(
@@ -2014,6 +2057,7 @@ export class SkillManager {
         cwd: this.projectRoot,
         global: this.isGlobal,
         installDir: defaults.installDir,
+        customAgents: this.getCustomAgents(),
       });
 
       // 6. Install to all target agents
@@ -2272,6 +2316,7 @@ export class SkillManager {
         cwd: this.projectRoot,
         global: this.isGlobal,
         installDir: defaults.installDir,
+        customAgents: this.getCustomAgents(),
       });
       const results = await installer.installToAgents(extractedPath, shortName, targetAgents, {
         mode: mode as InstallMode,
@@ -2343,14 +2388,15 @@ export class SkillManager {
    * 3. Return empty array
    */
   async getDefaultTargetAgents(): Promise<AgentType[]> {
+    const custom = this.getCustomAgents();
     // Read from configuration
     const defaults = this.config.getDefaults();
     if (defaults.targetAgents && defaults.targetAgents.length > 0) {
-      return defaults.targetAgents.filter(isValidAgentType) as AgentType[];
+      return defaults.targetAgents.filter((a) => isValidAgentType(a, custom)) as AgentType[];
     }
 
     // Auto-detect
-    return detectInstalledAgents();
+    return detectInstalledAgents(custom);
   }
 
   /**
@@ -2368,11 +2414,12 @@ export class SkillManager {
    * Validate agent type list
    */
   validateAgentTypes(agentNames: string[]): { valid: AgentType[]; invalid: string[] } {
+    const custom = this.getCustomAgents();
     const valid: AgentType[] = [];
     const invalid: string[] = [];
 
     for (const name of agentNames) {
-      if (isValidAgentType(name)) {
+      if (isValidAgentType(name, custom)) {
         valid.push(name);
       } else {
         invalid.push(name);
@@ -2386,7 +2433,7 @@ export class SkillManager {
    * Get all available agent types
    */
   getAllAgentTypes(): AgentType[] {
-    return Object.keys(agents) as AgentType[];
+    return getAllAgentTypes(this.getCustomAgents());
   }
 
   /**
@@ -2398,6 +2445,7 @@ export class SkillManager {
       cwd: this.projectRoot,
       global: this.isGlobal,
       installDir: defaults.installDir,
+      customAgents: this.getCustomAgents(),
     });
 
     const results = installer.uninstallFromAgents(name, targetAgents);

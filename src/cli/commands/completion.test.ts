@@ -38,20 +38,13 @@ vi.mock('../../core/skill-manager.js', () => ({
 }));
 
 vi.mock('../../core/agent-registry.js', () => ({
-  agents: {
-    cursor: {
-      name: 'cursor',
-      displayName: 'Cursor',
-    },
-    'claude-code': {
-      name: 'claude-code',
-      displayName: 'Claude Code',
-    },
-    windsurf: {
-      name: 'windsurf',
-      displayName: 'Windsurf',
-    },
-  },
+  getAllAgentTypes: () => ['cursor', 'claude-code', 'windsurf'],
+}));
+
+vi.mock('../../core/config-loader.js', () => ({
+  ConfigLoader: vi.fn().mockImplementation(() => ({
+    getCustomAgents: () => ({}),
+  })),
 }));
 
 // ============================================================================

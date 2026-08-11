@@ -1,7 +1,13 @@
 import * as p from '@clack/prompts';
 import chalk from 'chalk';
 import { Command } from 'commander';
-import { type AgentType, agents, detectInstalledAgents } from '../../core/agent-registry.js';
+import {
+  type AgentType,
+  agents,
+  type CustomAgentMap,
+  detectInstalledAgents,
+  getAgentConfig,
+} from '../../core/agent-registry.js';
 import { AuthManager } from '../../core/auth-manager.js';
 import { CLAUDE_COWORK_3P_AGENT } from '../../core/claude-3p-installer.js';
 import { ConfigLoader } from '../../core/config-loader.js';
@@ -51,6 +57,10 @@ interface InstallContext {
   skipManifest: boolean;
   /** Resolved absolute project root, or undefined to use process.cwd() */
   baseDir: string | undefined;
+  /** Custom agents declared in skills.json (alias -> config) */
+  customAgents: CustomAgentMap;
+  /** Ephemeral custom agents parsed from CLI `-a alias:path` (not persisted) */
+  ephemeralCustomAgents: CustomAgentMap;
 }
 
 // ============================================================================
@@ -61,8 +71,16 @@ interface InstallContext {
  * Format agent names list for display
  * Truncates long lists with "+N more" suffix
  */
-function formatAgentNames(agentTypes: AgentType[], maxShow = 5): string {
-  const names = agentTypes.map((a) => agents[a].displayName);
+function agentDisplayName(agent: AgentType, custom?: CustomAgentMap): string {
+  try {
+    return getAgentConfig(agent, custom).displayName;
+  } catch {
+    return agent;
+  }
+}
+
+function formatAgentNames(agentTypes: AgentType[], maxShow = 5, custom?: CustomAgentMap): string {
+  const names = agentTypes.map((a) => agentDisplayName(a, custom));
   if (names.length <= maxShow) {
     return names.join(', ');
   }
@@ -74,8 +92,8 @@ function formatAgentNames(agentTypes: AgentType[], maxShow = 5): string {
 /**
  * Format agent names with chalk coloring
  */
-function formatColoredAgentNames(agentTypes: AgentType[]): string {
-  return agentTypes.map((a) => chalk.cyan(agents[a].displayName)).join(', ');
+function formatColoredAgentNames(agentTypes: AgentType[], custom?: CustomAgentMap): string {
+  return agentTypes.map((a) => chalk.cyan(agentDisplayName(a, custom))).join(', ');
 }
 
 /**
@@ -93,6 +111,46 @@ function filterValidAgents(
 }
 
 /**
+ * Parse CLI `-a` args, splitting off any `alias:path` custom-agent targets.
+ *
+ * A token is treated as a custom-agent declaration when it contains `:` and
+ * its alias part is not a built-in agent. The alias must not collide with a
+ * built-in agent name, and the path part must be non-empty.
+ */
+function parseCliCustomAgents(agentArgs: string[]): {
+  agentNames: string[];
+  ephemeral: CustomAgentMap;
+} {
+  const ephemeral: CustomAgentMap = {};
+  const agentNames: string[] = [];
+
+  for (const arg of agentArgs) {
+    const colon = arg.indexOf(':');
+    const alias = colon === -1 ? arg : arg.slice(0, colon);
+
+    // Built-in name (or bare name without ':') passes through unchanged.
+    if (colon === -1 || alias in agents) {
+      agentNames.push(arg);
+      continue;
+    }
+
+    const targetPath = arg.slice(colon + 1).trim();
+    if (alias === '') {
+      p.log.error(`Invalid custom agent target: "${arg}" (missing alias)`);
+      process.exit(1);
+    }
+    if (targetPath === '') {
+      p.log.error(`Invalid custom agent target: "${arg}" (missing path)`);
+      process.exit(1);
+    }
+    ephemeral[alias] = { path: targetPath };
+    agentNames.push(alias);
+  }
+
+  return { agentNames, ephemeral };
+}
+
+/**
  * Create install context from command arguments and options
  */
 function createInstallContext(skills: string[], options: InstallOptions): InstallContext {
@@ -100,8 +158,17 @@ function createInstallContext(skills: string[], options: InstallOptions): Instal
   // must be settled before the config loader looks for one.
   const baseDir = resolveBaseDir(options.baseDir, { global: options.global });
   const configLoader = new ConfigLoader(baseDir);
-  const allAgentTypes = Object.keys(agents) as AgentType[];
   const hasSkillsJson = configLoader.exists();
+
+  const customAgents = hasSkillsJson ? configLoader.getCustomAgents() : {};
+
+  // Parse any CLI `-a alias:path` targets before validation.
+  const { ephemeral: ephemeralCustomAgents } = options.agent
+    ? parseCliCustomAgents(options.agent)
+    : { ephemeral: {} as CustomAgentMap };
+
+  const combinedCustom = { ...customAgents, ...ephemeralCustomAgents };
+  const allAgentTypes = [...(Object.keys(agents) as AgentType[]), ...Object.keys(combinedCustom)];
 
   // Load stored defaults from skills.json
   const storedDefaults = hasSkillsJson ? configLoader.getDefaults() : null;
@@ -122,6 +189,8 @@ function createInstallContext(skills: string[], options: InstallOptions): Instal
     skipConfirm: options.yes ?? false,
     skipManifest: options.skipManifest ?? false,
     baseDir,
+    customAgents,
+    ephemeralCustomAgents,
   };
 }
 
@@ -144,14 +213,16 @@ async function resolveTargetAgents(
     return allAgentTypes;
   }
 
+  const combinedCustom = { ...ctx.customAgents, ...ctx.ephemeralCustomAgents };
+
   // Priority 2: -a/--agent flag
   if (options.agent && options.agent.length > 0) {
-    return resolveAgentsFromCLI(options.agent, allAgentTypes);
+    return resolveAgentsFromCLI(options.agent, allAgentTypes, combinedCustom);
   }
 
   // Priority 3: Reinstall all with stored agents
   if (isReinstallAll && hasStoredAgents && storedAgents) {
-    p.log.info(`Using saved agents: ${formatColoredAgentNames(storedAgents)}`);
+    p.log.info(`Using saved agents: ${formatColoredAgentNames(storedAgents, combinedCustom)}`);
     return storedAgents;
   }
 
@@ -162,8 +233,16 @@ async function resolveTargetAgents(
 /**
  * Resolve agents from CLI -a option
  */
-function resolveAgentsFromCLI(agentArgs: string[], validAgents: AgentType[]): AgentType[] {
-  const invalidAgents = agentArgs.filter((a) => !validAgents.includes(a as AgentType));
+function resolveAgentsFromCLI(
+  agentArgs: string[],
+  validAgents: AgentType[],
+  custom: CustomAgentMap,
+): AgentType[] {
+  // Re-parse to resolve `alias:path` tokens into bare aliases.
+  const { agentNames } = parseCliCustomAgents(agentArgs);
+
+  const validSet = new Set(validAgents);
+  const invalidAgents = agentNames.filter((a) => !validSet.has(a as AgentType));
 
   if (invalidAgents.length > 0) {
     p.log.error(`Invalid agents: ${invalidAgents.join(', ')}`);
@@ -171,8 +250,8 @@ function resolveAgentsFromCLI(agentArgs: string[], validAgents: AgentType[]): Ag
     process.exit(1);
   }
 
-  const targetAgents = agentArgs as AgentType[];
-  p.log.info(`Installing to: ${formatAgentNames(targetAgents)}`);
+  const targetAgents = agentNames as AgentType[];
+  p.log.info(`Installing to: ${formatAgentNames(targetAgents, 5, custom)}`);
   return targetAgents;
 }
 
@@ -184,9 +263,10 @@ async function detectAndPromptAgents(
   spinner: ReturnType<typeof p.spinner>,
 ): Promise<AgentType[]> {
   const { allAgentTypes, storedAgents, hasStoredAgents, skipConfirm } = ctx;
+  const combinedCustom = { ...ctx.customAgents, ...ctx.ephemeralCustomAgents };
 
   spinner.start('Detecting installed agents...');
-  const installedAgents = await detectInstalledAgents();
+  const installedAgents = await detectInstalledAgents(combinedCustom);
   spinner.stop(
     `Detected ${chalk.green(installedAgents.length)} agent${installedAgents.length !== 1 ? 's' : ''}`,
   );
@@ -200,19 +280,21 @@ async function detectAndPromptAgents(
     return await promptAgentSelection(
       allAgentTypes,
       hasStoredAgents ? storedAgents : allAgentTypes,
+      false,
+      combinedCustom,
     );
   }
 
   // Single agent or skip confirmation
   if (installedAgents.length === 1 || skipConfirm) {
-    const displayNames = formatColoredAgentNames(installedAgents);
+    const displayNames = formatColoredAgentNames(installedAgents, combinedCustom);
     p.log.info(`Installing to: ${displayNames}`);
     return installedAgents;
   }
 
   // Multiple agents: let user select
   const initialAgents = hasStoredAgents ? storedAgents! : installedAgents;
-  return await promptAgentSelection(installedAgents, initialAgents, true);
+  return await promptAgentSelection(installedAgents, initialAgents, true, combinedCustom);
 }
 
 /**
@@ -222,16 +304,20 @@ async function promptAgentSelection(
   availableAgents: AgentType[],
   initialValues: AgentType[] | undefined,
   showHint = false,
+  custom?: CustomAgentMap,
 ): Promise<AgentType[]> {
   if (availableAgents.length === 0) {
     p.log.warn('No coding agents detected. You can still install skills.');
   }
 
-  const agentChoices = availableAgents.map((a) => ({
-    value: a,
-    label: agents[a].displayName,
-    ...(showHint && { hint: agents[a].skillsDir }),
-  }));
+  const agentChoices = availableAgents.map((a) => {
+    const config = getAgentConfig(a, custom);
+    return {
+      value: a,
+      label: config.displayName,
+      ...(showHint && { hint: config.skillsDir }),
+    };
+  });
 
   const selected = await p.multiselect({
     message: `Select agents to install skills to ${chalk.dim('(Space to toggle, Enter to confirm)')}`,
@@ -416,6 +502,7 @@ async function installAllSkills(
   const skillManager = new SkillManager(ctx.baseDir, {
     global: false,
     noManifest: ctx.skipManifest,
+    customAgents: ctx.ephemeralCustomAgents,
   });
   let totalInstalled = 0;
   let totalFailed = 0;
@@ -452,6 +539,7 @@ async function installAllSkills(
   // Save installation defaults
   if (totalInstalled > 0) {
     configLoader.updateDefaults({ targetAgents, installMode });
+    configLoader.updateCustomAgents(ctx.ephemeralCustomAgents);
   }
 }
 
@@ -472,6 +560,7 @@ async function installSingleSkill(
   const skillManager = new SkillManager(ctx.baseDir, {
     global: installGlobally,
     noManifest: ctx.skipManifest,
+    customAgents: ctx.ephemeralCustomAgents,
   });
 
   // Detect whether the ref points to a multi-skill directory
@@ -535,6 +624,7 @@ async function installSingleSkill(
   if (!installGlobally && successful.length > 0 && configLoader.exists()) {
     configLoader.reload(); // Sync with SkillManager's changes
     configLoader.updateDefaults({ targetAgents, installMode });
+    configLoader.updateCustomAgents(ctx.ephemeralCustomAgents);
   }
 }
 
@@ -618,6 +708,7 @@ async function installAutoDetectedMultiSkill(
   if (!installGlobally && installed.length > 0 && configLoader.exists()) {
     configLoader.reload();
     configLoader.updateDefaults({ targetAgents, installMode });
+    configLoader.updateCustomAgents(ctx.ephemeralCustomAgents);
   }
 }
 
@@ -637,6 +728,7 @@ async function installMultiSkillFromRepo(
   const skillManager = new SkillManager(ctx.baseDir, {
     global: installGlobally,
     noManifest: ctx.skipManifest,
+    customAgents: ctx.ephemeralCustomAgents,
   });
 
   if (listOnly) {
@@ -710,6 +802,7 @@ async function installMultiSkillFromRepo(
   if (!installGlobally && installed.length > 0 && ctx.configLoader.exists()) {
     ctx.configLoader.reload();
     ctx.configLoader.updateDefaults({ targetAgents, installMode });
+    ctx.configLoader.updateCustomAgents(ctx.ephemeralCustomAgents);
   }
 }
 
@@ -748,6 +841,7 @@ async function installMultipleSkills(
   const skillManager = new SkillManager(ctx.baseDir, {
     global: installGlobally,
     noManifest: ctx.skipManifest,
+    customAgents: ctx.ephemeralCustomAgents,
   });
   const successfulSkills: { name: string; version: string }[] = [];
   const failedSkills: { ref: string; error: string }[] = [];
@@ -804,6 +898,7 @@ async function installMultipleSkills(
   if (!installGlobally && successfulSkills.length > 0 && configLoader.exists()) {
     configLoader.reload(); // Sync with SkillManager's changes
     configLoader.updateDefaults({ targetAgents, installMode });
+    configLoader.updateCustomAgents(ctx.ephemeralCustomAgents);
   }
 
   // Exit with error if any skills failed
@@ -916,10 +1011,10 @@ function displaySingleSkillResults(
 
       const symlinked = successful
         .filter(([, r]) => !r.symlinkFailed)
-        .map(([a]) => agents[a].displayName);
+        .map(([a]) => agentDisplayName(a));
       const copied = successful
         .filter(([, r]) => r.symlinkFailed)
-        .map(([a]) => agents[a].displayName);
+        .map(([a]) => agentDisplayName(a));
 
       if (symlinked.length > 0) {
         resultLines.push(`  ${chalk.dim('symlink →')} ${symlinked.join(', ')}`);
@@ -939,7 +1034,7 @@ function displaySingleSkillResults(
     // Symlink failure warning
     const symlinkFailed = successful.filter(([, r]) => r.mode === 'symlink' && r.symlinkFailed);
     if (symlinkFailed.length > 0) {
-      const copiedAgentNames = symlinkFailed.map(([a]) => agents[a].displayName);
+      const copiedAgentNames = symlinkFailed.map(([a]) => agentDisplayName(a));
       p.log.warn(chalk.yellow(`Symlinks failed for: ${copiedAgentNames.join(', ')}`));
       p.log.message(
         chalk.dim(
@@ -953,7 +1048,7 @@ function displaySingleSkillResults(
   if (failed.length > 0) {
     p.log.error(chalk.red(`Failed to install to ${failed.length} agent(s)`));
     for (const [agent, result] of failed) {
-      p.log.message(`  ${chalk.red('✗')} ${agents[agent].displayName}: ${chalk.dim(result.error)}`);
+      p.log.message(`  ${chalk.red('✗')} ${agentDisplayName(agent)}: ${chalk.dim(result.error)}`);
     }
   }
 }

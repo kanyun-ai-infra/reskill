@@ -396,6 +396,64 @@ describe('ConfigLoader', () => {
     });
   });
 
+  describe('getCustomAgents', () => {
+    it('should return an empty map when no config exists', () => {
+      expect(configLoader.getCustomAgents()).toEqual({});
+    });
+
+    it('should return an empty map when customAgents is absent', () => {
+      const testConfig: SkillsJson = { skills: {} };
+      fs.writeFileSync(path.join(tempDir, 'skills.json'), JSON.stringify(testConfig));
+      const loader = new ConfigLoader(tempDir);
+      expect(loader.getCustomAgents()).toEqual({});
+    });
+
+    it('should read custom agents from skills.json', () => {
+      const testConfig: SkillsJson = {
+        skills: {},
+        customAgents: {
+          'cc-switch': { path: '.cc-switch/skills', globalPath: '~/.cc-switch/skills' },
+        },
+      };
+      fs.writeFileSync(path.join(tempDir, 'skills.json'), JSON.stringify(testConfig));
+
+      const loader = new ConfigLoader(tempDir);
+      const custom = loader.getCustomAgents();
+      expect(custom['cc-switch']).toEqual({
+        path: '.cc-switch/skills',
+        globalPath: '~/.cc-switch/skills',
+      });
+    });
+  });
+
+  describe('updateCustomAgents', () => {
+    it('should persist custom agents to skills.json', () => {
+      configLoader.create();
+      configLoader.updateCustomAgents({ 'cc-switch': { path: '.cc-switch/skills' } });
+
+      const reloaded = new ConfigLoader(tempDir);
+      expect(reloaded.getCustomAgents()).toEqual({
+        'cc-switch': { path: '.cc-switch/skills' },
+      });
+    });
+
+    it('should merge without dropping existing custom agents', () => {
+      configLoader.create({ customAgents: { existing: { path: '.existing/skills' } } });
+      configLoader.updateCustomAgents({ 'cc-switch': { path: '.cc-switch/skills' } });
+
+      const reloaded = new ConfigLoader(tempDir);
+      const custom = reloaded.getCustomAgents();
+      expect(custom.existing).toEqual({ path: '.existing/skills' });
+      expect(custom['cc-switch']).toEqual({ path: '.cc-switch/skills' });
+    });
+
+    it('should be a no-op for an empty update', () => {
+      configLoader.create();
+      configLoader.updateCustomAgents({});
+      expect(new ConfigLoader(tempDir).getCustomAgents()).toEqual({});
+    });
+  });
+
   describe('getRegistries', () => {
     it('should return default registries when no config', () => {
       const registries = configLoader.getRegistries();

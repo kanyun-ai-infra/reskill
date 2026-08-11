@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import tabtab from 'tabtab';
-import { type AgentType, agents } from '../../core/agent-registry.js';
+import { getAllAgentTypes } from '../../core/agent-registry.js';
+import { ConfigLoader } from '../../core/config-loader.js';
 import { SkillManager } from '../../core/skill-manager.js';
 import { logger } from '../../utils/logger.js';
 
@@ -27,7 +28,11 @@ const SKILL_COMPLETION_COMMANDS = ['info', 'uninstall', 'update'];
  * Get all agent type names for completion
  */
 function getAgentNames(): string[] {
-  return Object.keys(agents) as AgentType[];
+  try {
+    return getAllAgentTypes(new ConfigLoader().getCustomAgents());
+  } catch {
+    return getAllAgentTypes();
+  }
 }
 
 /**

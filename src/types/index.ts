@@ -3,7 +3,13 @@
  * Based on: docs/skills-management-design.md
  */
 
-import type { AgentConfig, AgentType } from '../core/agent-registry.js';
+import type {
+  AgentConfig,
+  AgentType,
+  BuiltinAgentType,
+  CustomAgentConfig,
+  CustomAgentMap,
+} from '../core/agent-registry.js';
 
 // ============================================================================
 // Multi-Agent related types
@@ -12,20 +18,7 @@ import type { AgentConfig, AgentType } from '../core/agent-registry.js';
 /**
  * Supported Agent types
  */
-export type { AgentConfig, AgentType };
-
-/**
- * Installation mode
- */
-export type { InstallMode, InstallResult } from '../core/installer.js';
-
-/**
- * SKILL.md parsing related types (following agentskills.io specification)
- */
-export type {
-  ParsedSkill,
-  SkillMdFrontmatter,
-} from '../core/skill-parser.js';
+export type { AgentConfig, AgentType, BuiltinAgentType, CustomAgentConfig, CustomAgentMap };
 
 /**
  * Content scanning types
@@ -38,6 +31,17 @@ export type {
   ScanRule,
   ScanRuleMatch,
 } from '../core/content-scanner.js';
+/**
+ * Installation mode
+ */
+export type { InstallMode, InstallResult } from '../core/installer.js';
+/**
+ * SKILL.md parsing related types (following agentskills.io specification)
+ */
+export type {
+  ParsedSkill,
+  SkillMdFrontmatter,
+} from '../core/skill-parser.js';
 
 // ============================================================================
 // skills.json - Project dependency configuration
@@ -106,6 +110,8 @@ export interface SkillsJson {
   defaults?: SkillsDefaults;
   /** Skill override configuration */
   overrides?: Record<string, SkillOverride>;
+  /** Custom agent targets (alias -> directory configuration) */
+  customAgents?: CustomAgentMap;
 }
 
 // ============================================================================

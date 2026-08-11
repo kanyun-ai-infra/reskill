@@ -11,7 +11,7 @@
 import * as fs from 'node:fs';
 import { homedir, platform } from 'node:os';
 import * as path from 'node:path';
-import type { AgentType } from './agent-registry.js';
+import type { AgentType, CustomAgentMap } from './agent-registry.js';
 import { getAgentConfig } from './agent-registry.js';
 import {
   CLAUDE_COWORK_3P_AGENT,
@@ -57,6 +57,8 @@ export interface InstallerOptions {
   mode?: InstallMode;
   /** Custom installation directory (relative to cwd), overrides default .agents/skills */
   installDir?: string;
+  /** Custom agent targets (alias -> directory configuration) */
+  customAgents?: CustomAgentMap;
 }
 
 const AGENTS_DIR = '.agents';
@@ -237,11 +239,13 @@ export class Installer {
   private cwd: string;
   private isGlobal: boolean;
   private installDir?: string;
+  private customAgents?: CustomAgentMap;
 
-  constructor(options: { cwd?: string; global?: boolean; installDir?: string } = {}) {
+  constructor(options: InstallerOptions = {}) {
     this.cwd = options.cwd || process.cwd();
     this.isGlobal = options.global || false;
     this.installDir = options.installDir;
+    this.customAgents = options.customAgents;
   }
 
   /**
@@ -261,7 +265,7 @@ export class Installer {
       return getClaude3pSkillPath(skillName);
     }
 
-    const agent = getAgentConfig(agentType);
+    const agent = getAgentConfig(agentType, this.customAgents);
     const sanitized = sanitizeName(skillName);
     const agentBase = this.isGlobal ? agent.globalSkillsDir : path.join(this.cwd, agent.skillsDir);
     return path.join(agentBase, sanitized);
@@ -285,7 +289,7 @@ export class Installer {
       return installClaude3pSkill(sourcePath, skillName, { mode: options.mode });
     }
 
-    const agent = getAgentConfig(agentType);
+    const agent = getAgentConfig(agentType, this.customAgents);
     const installMode = options.mode || 'symlink';
     const sanitized = sanitizeName(skillName);
 
@@ -294,6 +298,14 @@ export class Installer {
     const canonicalDir = path.join(canonicalBase, sanitized);
 
     // Agent specific location
+    if (this.isGlobal && !agent.globalSkillsDir) {
+      return {
+        success: false,
+        path: '',
+        mode: installMode,
+        error: `Custom agent "${agentType}" has no globalPath configured; cannot install globally`,
+      };
+    }
     const agentBase = this.isGlobal ? agent.globalSkillsDir : path.join(this.cwd, agent.skillsDir);
     const agentDir = path.join(agentBase, sanitized);
 
@@ -479,10 +491,10 @@ export class Installer {
       }
     }
 
-    const agent = getAgentConfig(agentType);
+    const agent = getAgentConfig(agentType, this.customAgents);
     const skillsDir = this.isGlobal ? agent.globalSkillsDir : path.join(this.cwd, agent.skillsDir);
 
-    if (!fs.existsSync(skillsDir)) {
+    if (!skillsDir || !fs.existsSync(skillsDir)) {
       return [];
     }
 

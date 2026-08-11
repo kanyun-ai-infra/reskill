@@ -1,7 +1,7 @@
 import * as p from '@clack/prompts';
 import chalk from 'chalk';
 import { Command } from 'commander';
-import { type AgentType, agents } from '../../core/agent-registry.js';
+import { type AgentType, getAgentConfig, getAllAgentTypes } from '../../core/agent-registry.js';
 import { ConfigLoader } from '../../core/config-loader.js';
 import { Installer } from '../../core/installer.js';
 import { SkillManager } from '../../core/skill-manager.js';
@@ -33,13 +33,15 @@ export const uninstallCommand = new Command('uninstall')
     // Use installDir from config to match where skills are actually installed
     const config = new ConfigLoader(projectRoot);
     const defaults = config.getDefaults();
+    const customAgents = config.getCustomAgents();
     const installer = new Installer({
       cwd: projectRoot,
       global: isGlobal,
       installDir: defaults.installDir,
+      customAgents,
     });
 
-    const allAgentTypes = Object.keys(agents) as AgentType[];
+    const allAgentTypes = getAllAgentTypes(customAgents);
 
     // Collect info for all skills
     type SkillInfo = {
@@ -78,7 +80,9 @@ export const uninstallCommand = new Command('uninstall')
     const summaryLines: string[] = [];
     for (const skill of skillsToUninstall) {
       summaryLines.push(`${chalk.cyan(skill.name)}`);
-      const agentNames = skill.installedAgents.map((a) => agents[a].displayName).join(', ');
+      const agentNames = skill.installedAgents
+        .map((a) => getAgentConfig(a, customAgents).displayName)
+        .join(', ');
       if (agentNames) {
         summaryLines.push(`  ${chalk.dim('→')} ${agentNames}`);
       }
