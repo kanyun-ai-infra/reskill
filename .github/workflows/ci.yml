@@ -16,9 +16,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # v6 or newer is required to install the pnpm 11 pinned in packageManager.
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
+      # '22.x' resolves to the newest 22.x, which satisfies the Node >= 22.13
+      # that pnpm 11 requires. Do not pin below that.
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:

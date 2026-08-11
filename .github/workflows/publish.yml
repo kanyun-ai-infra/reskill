@@ -23,14 +23,20 @@ jobs:
         with:
           fetch-depth: 0
 
+      # v6 or newer is required: earlier versions bootstrap with a pnpm 8 that
+      # cannot install the pnpm 11 pinned in packageManager (it unpacks the
+      # tarball but leaves node_modules/.bin/pnpm dangling).
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
+      # No registry-url: it would make setup-node write an .npmrc with
+      # `_authToken=${NODE_AUTH_TOKEN}`, and a static token takes us off the
+      # trusted publishing path. Auth comes from OIDC (see permissions above).
+      # '22.x' also keeps us above the Node >= 22.13 that pnpm 11 requires.
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22.x'
-          registry-url: 'https://registry.npmjs.org'
           cache: 'pnpm'
 
       - name: Install dependencies
@@ -49,8 +55,9 @@ jobs:
           commit: 'chore: version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_CONFIG_PROVENANCE: true
+          # pnpm 11 reads its own settings from pnpm_config_* only; the npm_config_*
+          # form is ignored, which would leave provenance up to auto-detection.
+          pnpm_config_provenance: true
 
   beta-release:
     name: Beta Release
@@ -66,13 +73,13 @@ jobs:
           fetch-depth: 0
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
+      # See the note in the release job: no registry-url, auth comes from OIDC.
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22.x'
-          registry-url: 'https://registry.npmjs.org'
           cache: 'pnpm'
 
       - name: Install dependencies
@@ -127,8 +134,8 @@ jobs:
         if: steps.check-pre.outputs.is_pre == 'true' && steps.check-version.outputs.has_changes == 'true'
         run: pnpm changeset publish
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_CONFIG_PROVENANCE: true
+          # See the note in the release job on the pnpm_config_ prefix.
+          pnpm_config_provenance: true
 
       - name: Commit version bump back to branch
         if: steps.check-pre.outputs.is_pre == 'true' && steps.check-version.outputs.has_changes == 'true'
