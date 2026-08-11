@@ -610,15 +610,38 @@ export function checkTargetAgents(cwd: string): CheckResult[] {
 
   try {
     const defaults = configLoader.getDefaults();
+    const customAgents = configLoader.getCustomAgents();
     const targetAgents = defaults.targetAgents || [];
 
     for (const agent of targetAgents) {
-      if (!isValidAgentType(agent)) {
+      if (!isValidAgentType(agent, customAgents)) {
         results.push({
           name: 'Invalid agent',
           status: 'warn',
           message: `Unknown agent type: "${agent}"`,
-          hint: 'Run: reskill install --help to see valid agent types',
+          hint: 'Run: reskill install --help to see valid agent types, or declare a customAgents entry',
+        });
+      }
+    }
+
+    // Validate custom agent declarations themselves.
+    for (const [alias, cfg] of Object.entries(customAgents)) {
+      const relPath = cfg.path?.trim();
+      if (!relPath) {
+        results.push({
+          name: 'Invalid custom agent',
+          status: 'warn',
+          message: `Custom agent "${alias}" has an empty path`,
+          hint: 'Set customAgents.<alias>.path to a directory relative to the project root',
+        });
+        continue;
+      }
+      if (relPath.startsWith('/') || relPath.includes('..')) {
+        results.push({
+          name: 'Invalid custom agent',
+          status: 'warn',
+          message: `Custom agent "${alias}" path "${relPath}" must be a relative path without ".."`,
+          hint: 'Use a project-relative path; set globalPath for absolute global targets',
         });
       }
     }

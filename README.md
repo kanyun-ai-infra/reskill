@@ -250,6 +250,40 @@ Skills are installed to `.skills/` by default and can be integrated with any age
 | Trae           | `.trae/skills`     |
 | Windsurf       | `.windsurf/skills` |
 
+### Custom Agent Targets
+
+Not every tool is in the built-in table. Declare your own alias → directory
+under `customAgents` in `skills.json`, then use it anywhere a built-in agent
+name is accepted (`-a`, `defaults.targetAgents`, `list -a`, `uninstall`):
+
+```json
+{
+  "skills": {},
+  "defaults": { "targetAgents": ["claude-code", "cc-switch"] },
+  "customAgents": {
+    "cc-switch": {
+      "path": ".cc-switch/skills",
+      "globalPath": "~/.cc-switch/skills"
+    }
+  }
+}
+```
+
+- `path` — project-level directory, relative to the project root (required).
+- `globalPath` — absolute directory (a leading `~` expands to your home) used
+  for `-g/--global` installs. Global installs into a custom agent without a
+  `globalPath` are rejected.
+
+You can also declare a custom agent inline with `alias:path` on the CLI. On a
+successful project install the alias is written back into `skills.json` under
+`customAgents`, so subsequent commands (`reskill install`, `list -a`, …) reuse
+it without repeating the path:
+
+```bash
+reskill install github:user/skill -a cc-switch:.cc-switch/skills
+# → skills.json now contains customAgents["cc-switch"] = { "path": ".cc-switch/skills" }
+```
+
 ### Isolated Project Roots
 
 By default, project-level commands resolve everything against the current

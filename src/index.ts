@@ -9,6 +9,7 @@
 export {
   // Multi-Agent support
   agents,
+  buildCustomAgentConfig,
   CacheManager,
   ConfigLoader,
   // Content scanning
@@ -44,6 +45,9 @@ export type {
   AgentConfig,
   // Multi-Agent types
   AgentType,
+  BuiltinAgentType,
+  CustomAgentConfig,
+  CustomAgentMap,
   InstalledSkill,
   InstallMode,
   InstallOptions,

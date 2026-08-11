@@ -15,9 +15,9 @@ import {
 } from './claude-3p-installer.js';
 
 /**
- * Supported Agent types
+ * Built-in Agent types
  */
-export type AgentType =
+export type BuiltinAgentType =
   | 'amp'
   | 'antigravity'
   | 'claude-code'
@@ -36,6 +36,33 @@ export type AgentType =
   | 'trae'
   | 'windsurf'
   | 'neovate';
+
+/**
+ * Agent type identifier.
+ *
+ * Accepts the built-in agents (with editor autocompletion via the literal
+ * union) as well as arbitrary custom agent aliases defined in skills.json.
+ * The `string & {}` branch keeps the literal suggestions while still allowing
+ * any user-defined alias to type-check.
+ */
+export type AgentType = BuiltinAgentType | (string & {});
+
+/**
+ * Custom agent configuration as declared in skills.json.
+ */
+export interface CustomAgentConfig {
+  /** Project-level skills directory (relative to project root) */
+  path: string;
+  /** Global skills directory (absolute; supports `~` for the home directory) */
+  globalPath?: string;
+  /** Optional display name; defaults to the alias */
+  displayName?: string;
+}
+
+/**
+ * Map of custom agent alias -> configuration.
+ */
+export type CustomAgentMap = Record<string, CustomAgentConfig>;
 
 /**
  * Agent configuration interface
@@ -58,7 +85,7 @@ const home = homedir();
 /**
  * All supported Agents configuration
  */
-export const agents: Record<AgentType, AgentConfig> = {
+export const agents: Record<BuiltinAgentType, AgentConfig> = {
   amp: {
     name: 'amp',
     displayName: 'Amp',
@@ -231,16 +258,52 @@ export const agents: Record<AgentType, AgentConfig> = {
 };
 
 /**
- * Get all Agent type list
+ * Expand a leading `~` to the user's home directory.
  */
-export function getAllAgentTypes(): AgentType[] {
-  return Object.keys(agents) as AgentType[];
+function expandHome(p: string): string {
+  if (p === '~') {
+    return home;
+  }
+  if (p.startsWith('~/')) {
+    return join(home, p.slice(2));
+  }
+  return p;
 }
 
 /**
- * Detect installed Agents
+ * Build an AgentConfig from a custom agent declaration.
+ *
+ * Custom agents reuse the same AgentConfig shape as built-ins, so all
+ * downstream path resolution works unchanged. `globalSkillsDir` is only
+ * available when the declaration provides `globalPath`; consumers must guard
+ * global installs when it is empty.
  */
-export async function detectInstalledAgents(): Promise<AgentType[]> {
+export function buildCustomAgentConfig(name: string, cfg: CustomAgentConfig): AgentConfig {
+  return {
+    name,
+    displayName: cfg.displayName ?? name,
+    skillsDir: cfg.path,
+    globalSkillsDir: cfg.globalPath ? expandHome(cfg.globalPath) : '',
+    detectInstalled: async () => true,
+  };
+}
+
+/**
+ * Get all Agent type list, including custom agents when provided.
+ */
+export function getAllAgentTypes(custom?: CustomAgentMap): AgentType[] {
+  const builtin = Object.keys(agents) as AgentType[];
+  if (!custom) {
+    return builtin;
+  }
+  return [...builtin, ...Object.keys(custom)];
+}
+
+/**
+ * Detect installed Agents. Custom agents are always considered installed,
+ * since their target directory is declared explicitly by the user.
+ */
+export async function detectInstalledAgents(custom?: CustomAgentMap): Promise<AgentType[]> {
   const installed: AgentType[] = [];
 
   for (const [type, config] of Object.entries(agents)) {
@@ -249,21 +312,35 @@ export async function detectInstalledAgents(): Promise<AgentType[]> {
     }
   }
 
+  if (custom) {
+    installed.push(...Object.keys(custom));
+  }
+
   return installed;
 }
 
 /**
- * Get Agent configuration
+ * Get Agent configuration.
+ *
+ * Resolves built-in agents first, then custom agents from the provided map.
+ * Throws when the type is neither built-in nor a known custom agent.
  */
-export function getAgentConfig(type: AgentType): AgentConfig {
-  return agents[type];
+export function getAgentConfig(type: AgentType, custom?: CustomAgentMap): AgentConfig {
+  if (type in agents) {
+    return agents[type as BuiltinAgentType];
+  }
+  const customCfg = custom?.[type];
+  if (customCfg) {
+    return buildCustomAgentConfig(type, customCfg);
+  }
+  throw new Error(`Unknown agent type: "${type}"`);
 }
 
 /**
- * Validate if Agent type is valid
+ * Validate if Agent type is valid (built-in or a known custom agent).
  */
-export function isValidAgentType(type: string): type is AgentType {
-  return type in agents;
+export function isValidAgentType(type: string, custom?: CustomAgentMap): boolean {
+  return type in agents || (custom ? type in custom : false);
 }
 
 /**
@@ -275,13 +352,18 @@ export function isValidAgentType(type: string): type is AgentType {
  */
 export function getAgentSkillsDir(
   type: AgentType,
-  options: { global?: boolean; cwd?: string } = {},
+  options: { global?: boolean; cwd?: string; custom?: CustomAgentMap } = {},
 ): string {
-  const config = agents[type];
   if (type === CLAUDE_COWORK_3P_AGENT) {
     return join(resolveClaude3pSkillsRoot(), 'skills');
   }
+  const config = getAgentConfig(type, options.custom);
   if (options.global) {
+    if (!config.globalSkillsDir) {
+      throw new Error(
+        `Custom agent "${type}" has no globalPath configured; cannot install globally`,
+      );
+    }
     return config.globalSkillsDir;
   }
   const cwd = options.cwd || process.cwd();

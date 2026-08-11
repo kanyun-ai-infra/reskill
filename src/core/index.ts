@@ -1,7 +1,14 @@
-export type { AgentConfig, AgentType } from './agent-registry.js';
+export type {
+  AgentConfig,
+  AgentType,
+  BuiltinAgentType,
+  CustomAgentConfig,
+  CustomAgentMap,
+} from './agent-registry.js';
 // Multi-Agent support
 export {
   agents,
+  buildCustomAgentConfig,
   detectInstalledAgents,
   getAgentConfig,
   getAgentSkillsDir,

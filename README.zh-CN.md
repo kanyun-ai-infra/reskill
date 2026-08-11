@@ -250,6 +250,38 @@ Skills 默认安装到 `.skills/`，可与任何 Agent 集成：
 | Trae           | `.trae/skills`     |
 | Windsurf       | `.windsurf/skills` |
 
+### 自定义 Agent 目标
+
+内置列表之外的工具，可以在 `skills.json` 的 `customAgents` 里声明「别名 → 目录」，
+然后在任何接受内置 Agent 名的地方使用它（`-a`、`defaults.targetAgents`、
+`list -a`、`uninstall`）：
+
+```json
+{
+  "skills": {},
+  "defaults": { "targetAgents": ["claude-code", "cc-switch"] },
+  "customAgents": {
+    "cc-switch": {
+      "path": ".cc-switch/skills",
+      "globalPath": "~/.cc-switch/skills"
+    }
+  }
+}
+```
+
+- `path` — 项目级目录，相对于项目根（必填）。
+- `globalPath` — 绝对目录（开头的 `~` 会展开为家目录），用于 `-g/--global` 安装。
+  对未配置 `globalPath` 的自定义 Agent 执行全局安装会被拒绝。
+
+也可以直接在 CLI 用 `别名:路径` 声明自定义 Agent。项目级安装成功后，该别名会被
+写回 `skills.json` 的 `customAgents`，后续命令（`reskill install`、`list -a` 等）
+无需再重复路径即可复用：
+
+```bash
+reskill install github:user/skill -a cc-switch:.cc-switch/skills
+# → skills.json 中会写入 customAgents["cc-switch"] = { "path": ".cc-switch/skills" }
+```
+
 ### 隔离的项目根目录
 
 默认情况下，项目级命令都基于当前目录解析路径。`--base-dir` 可以把它们指向另一个项目根目录——`skills.json`、`skills.lock` 和各 Agent 目录会一起迁移：

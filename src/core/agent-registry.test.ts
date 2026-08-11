@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   type AgentType,
   agents,
+  buildCustomAgentConfig,
+  type CustomAgentMap,
   detectInstalledAgents,
   getAgentConfig,
   getAgentSkillsDir,
@@ -230,6 +232,98 @@ describe('agent-registry', () => {
       for (const agent of installed) {
         expect(isValidAgentType(agent)).toBe(true);
       }
+    });
+  });
+
+  describe('custom agents', () => {
+    const home = os.homedir();
+    const custom: CustomAgentMap = {
+      'cc-switch': { path: '.cc-switch/skills', globalPath: '~/.cc-switch/skills' },
+      'proj-only': { path: '.tool/skills' },
+    };
+
+    describe('buildCustomAgentConfig', () => {
+      it('should map path to skillsDir and expand ~ in globalPath', () => {
+        const config = buildCustomAgentConfig('cc-switch', custom['cc-switch']);
+        expect(config.name).toBe('cc-switch');
+        expect(config.displayName).toBe('cc-switch');
+        expect(config.skillsDir).toBe('.cc-switch/skills');
+        expect(config.globalSkillsDir).toBe(path.join(home, '.cc-switch/skills'));
+      });
+
+      it('should use displayName when provided', () => {
+        const config = buildCustomAgentConfig('x', { path: '.x/skills', displayName: 'My X' });
+        expect(config.displayName).toBe('My X');
+      });
+
+      it('should leave globalSkillsDir empty when globalPath is absent', () => {
+        const config = buildCustomAgentConfig('proj-only', custom['proj-only']);
+        expect(config.globalSkillsDir).toBe('');
+      });
+
+      it('should always report as installed', async () => {
+        const config = buildCustomAgentConfig('x', { path: '.x/skills' });
+        expect(await config.detectInstalled()).toBe(true);
+      });
+    });
+
+    describe('isValidAgentType with custom', () => {
+      it('should accept a custom alias when passed the map', () => {
+        expect(isValidAgentType('cc-switch', custom)).toBe(true);
+      });
+
+      it('should reject a custom alias when no map is passed', () => {
+        expect(isValidAgentType('cc-switch')).toBe(false);
+      });
+
+      it('should still accept built-in agents', () => {
+        expect(isValidAgentType('claude-code', custom)).toBe(true);
+      });
+    });
+
+    describe('getAgentConfig with custom', () => {
+      it('should resolve a custom agent', () => {
+        expect(getAgentConfig('cc-switch', custom).skillsDir).toBe('.cc-switch/skills');
+      });
+
+      it('should throw for an unknown agent', () => {
+        expect(() => getAgentConfig('nope', custom)).toThrow(/Unknown agent type/);
+      });
+    });
+
+    describe('getAgentSkillsDir with custom', () => {
+      it('should resolve a project-level custom directory', () => {
+        const dir = getAgentSkillsDir('cc-switch', { cwd: '/proj', custom });
+        expect(dir).toBe(path.join('/proj', '.cc-switch/skills'));
+      });
+
+      it('should resolve a global custom directory', () => {
+        const dir = getAgentSkillsDir('cc-switch', { global: true, custom });
+        expect(dir).toBe(path.join(home, '.cc-switch/skills'));
+      });
+
+      it('should throw for global install without globalPath', () => {
+        expect(() => getAgentSkillsDir('proj-only', { global: true, custom })).toThrow(
+          /no globalPath configured/,
+        );
+      });
+    });
+
+    describe('getAllAgentTypes with custom', () => {
+      it('should append custom aliases', () => {
+        const all = getAllAgentTypes(custom);
+        expect(all).toContain('cc-switch');
+        expect(all).toContain('proj-only');
+        expect(all.length).toBe(Object.keys(agents).length + 2);
+      });
+    });
+
+    describe('detectInstalledAgents with custom', () => {
+      it('should always include custom aliases', async () => {
+        const installed = await detectInstalledAgents(custom);
+        expect(installed).toContain('cc-switch');
+        expect(installed).toContain('proj-only');
+      });
     });
   });
 });

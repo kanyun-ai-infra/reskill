@@ -7,7 +7,7 @@
 
 import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { type AgentType, agents } from './agent-registry.js';
+import { agents, type BuiltinAgentType } from './agent-registry.js';
 
 /**
  * Default skills directory when no AI tool is detected
@@ -18,7 +18,7 @@ export const DEFAULT_SKILLS_DIR = '.skills';
  * Agent priority order for detection
  * 当多个 agent 目录同时存在时，按此顺序选择
  */
-const AGENT_PRIORITY: AgentType[] = [
+const AGENT_PRIORITY: BuiltinAgentType[] = [
   'claude-code', // .claude
   'cursor', // .cursor
   'windsurf', // .windsurf
@@ -110,7 +110,7 @@ export async function detectInstallDirectory(options: DetectOptions = {}): Promi
  * @param baseDir - Base project directory
  * @returns Agent base directory path or null if not applicable
  */
-function getAgentBaseDir(agentType: AgentType, baseDir: string): string | null {
+function getAgentBaseDir(agentType: BuiltinAgentType, baseDir: string): string | null {
   const config = agents[agentType];
   const skillsDir = config.skillsDir;
 
